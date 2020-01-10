@@ -29,7 +29,7 @@ class Kernel:
         else:
             return 0
     
-    def Spiky(self):
+    def Spiky(self): #Recommended for pressure
         if r >= 0 and r <= h:
             return 15/(pi*h**6)*power(h-r,3)
         else:
