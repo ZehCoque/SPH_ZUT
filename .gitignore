@@ -129,6 +129,5 @@ dmypy.json
 .pyre/
 
 # folders
-.vscode
 v_env_SPHZUT
 venv_SPHZUT

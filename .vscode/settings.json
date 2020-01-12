@@ -1,0 +1,5 @@
+{
+    "python.pythonPath": "c:\\Users\\Ze\\Desktop\\SPH_ZUT\\venv_SPHZUT\\Scripts\\python.exe",
+    "code-runner.executorMap": {"python":"$pythonPath $fullFileName"},
+    "code-runner.runInTerminal": false
+}
