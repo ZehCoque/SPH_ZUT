@@ -9,6 +9,7 @@ class Cubic_Spline:
         self.r = r
         self.h = h
         self.step = step
+        self.q = r/(2*h)
 
     def Kernel(self):
                 
@@ -43,13 +44,14 @@ class B_Spline:
         self.r = r
         self.h = h
         self.step = step
+        self.q = r/h
         
     def Kernel(self):
         
-        if q >= 0 and q <= 1:
-            return 1/(pi*power(self.h,3))*(1+(3*power(q,3)/4)+(3*power(q,2)/2))
-        elif q > 1 and q <= 2:
-            return 1/(pi*power(self.h,3))*(0.25*power(2-q,3))
+        if self.q >= 0 and self.q <= 1:
+            return 1/(pi*power(self.h,3))*(1+(3*power(self.q,3)/4)+(3*power(self.q,2)/2))
+        elif self.q > 1 and self.q <= 2:
+            return 1/(pi*power(self.h,3))*(0.25*power(2-self.q,3))
         else:
             return 0
     
