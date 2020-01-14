@@ -5,18 +5,19 @@ from numpy import pi, power, sqrt, linspace, insert
 import pandas as pd
 
 class Cubic_Spline:
-    def __init__(self,r=1,h=2,step=1/1e6):
+    def __init__(self,r=1,h=2,dim=3,step=1/1e6):
         self.r = r
         self.h = h
         self.step = step
-        self.q = r/(2*h)
+        self.q = r/h
+        self.fac = h**-dim
 
     def Kernel(self):
                 
-        if self.q >= 0 and self.q <= 1/2:
-            return 8/pi*(1-6*power(self.q,2)+6*power(self.q,3))
-        elif self.q > 1/2 and self.q <= 1:
-            return 16/pi*power(1-self.q,3)
+        if self.q >= 0 and self.q < 1:
+            return self.fac*3/(2*pi)*(2/3-power(self.q,2)+1/2*power(self.q,3))
+        elif self.q >= 1 and self.q <= 2:
+            return self.fac/(4*pi)*power(2-self.q,3)
         else:
             return 0
     
@@ -40,18 +41,19 @@ class Cubic_Spline:
     
 
 class B_Spline:
-    def __init__(self,r=1,h=2,step=1/1e6):
+    def __init__(self,r=1,h=2,dim=3,step=1/1e6):
         self.r = r
         self.h = h
         self.step = step
         self.q = r/h
+        self.fac = h**-dim
         
     def Kernel(self):
         
         if self.q >= 0 and self.q <= 1:
-            return 1/(pi*power(self.h,3))*(1+(3*power(self.q,3)/4)+(3*power(self.q,2)/2))
+            return self.fac/pi*(1+(3*power(self.q,3)/4)+(3*power(self.q,2)/2))
         elif self.q > 1 and self.q <= 2:
-            return 1/(pi*power(self.h,3))*(0.25*power(2-self.q,3))
+            return self.fac/pi*(0.25*power(2-self.q,3))
         else:
             return 0
     

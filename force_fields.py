@@ -1,6 +1,10 @@
 import kernels
 
-# Smoothed pressure force field
+# Smoothed density
+def Density()
+
+
+# Smoothed pressure
 def Pressure(posi=[0,0,0],posj=[[0,0,0]],h=2,mass_j=[0],pressure_i=0,pressure_j=[0],density_j=[0]):
     pressure = 0.
     for i in range(0,mass_j.__len__):
@@ -8,4 +12,4 @@ def Pressure(posi=[0,0,0],posj=[[0,0,0]],h=2,mass_j=[0],pressure_i=0,pressure_j=
         W = kernels.Spiky(posi,posj[i],h)
         pressure = pressure + p_tmp * W
     
-    return pressure    
+    return pressure
