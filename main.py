@@ -4,7 +4,7 @@
 
 import pandas as pd
 from numpy import sqrt
-#import force_fields
+import force_fields
 import kernels
 
 #Initialization
@@ -13,8 +13,10 @@ particles = {'X':[0,0.8,1,0],
              'Z':[0,0,0.25,0.25],
              'Radius':[1,1,1,1],
              'Mass':[1,1,1,1],
-             'Pressure':[1,1,1,1],
-             'Density':[1,1,1,1],
+             'Pressure':[1000,1000,1000,1000],
+             'X Density':[1000,1000,1000,1000],
+             'Y Density':[1000,1000,1000,1000],
+             'Z Density':[1000,1000,1000,1000],
              'X Velocity':[-1,0.8,1,2],
              'Y Velocity':[-0.4,0.5,2,1],
              'Z Velocity':[0,0,0,0],
@@ -48,9 +50,30 @@ for i in range(0,particles.shape[0]):
     
     particles.at[i, 'Neighbors'] = Neighbors[Neighbors].index.values
 
+    # print(particles)
     
+for i in range(0,particles.shape[0]):
+    
+    indexes = particles.loc[[i],['Neighbors']].values[0][0]
+    neighbor_particles = particles.loc[indexes]
+
+    density_xi = particles.loc[[i],['X Density']].values[0][0]
+    density_yi = particles.loc[[i],['Y Density']].values[0][0]
+    density_zi = particles.loc[[i],['Z Density']].values[0][0]
+    r_xi = particles.loc[[i],['rx']].values[0][0]
+    r_yi = particles.loc[[i],['ry']].values[0][0]
+    r_zi = particles.loc[[i],['rz']].values[0][0]
+    
+    Grad_W_x = kernels.Cubic_Spline(r=r_xi,h=h)
+    Grad_W_y = kernels.Cubic_Spline(r=r_yi,h=h)
+    Grad_W_z = kernels.Cubic_Spline(r=r_zi,h=h)
+
+    particles['X Density'] = force_fields.Density(neighbor_particles['Mass'],density_xi,neighbor_particles['X Density'],Grad_W_x)
+    particles['Y Density'] = force_fields.Density(neighbor_particles['Mass'],density_yi,neighbor_particles['X Density'],Grad_W_y)
+    particles['Z Density'] = force_fields.Density(neighbor_particles['Mass'],density_zi,neighbor_particles['X Density'],Grad_W_z)
+
     print(particles)
-    
+
     #particles['Same Material'] = (particles['Type'] == Type_i)
     # print(particles.loc[[1],['ri-rj']].values[0][0]/h)
     # W = kernels.Spiky(particles.loc[[1],['ri-rj']].values[0][0],h).Laplacian()
