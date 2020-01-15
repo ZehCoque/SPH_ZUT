@@ -11,6 +11,8 @@ h = 1.
 k = 1.
 rho_0 = 0.95
 mu = 1
+axis_array = ['X','Y','Z'] # auxiliary axis
+g = 9.81
 
 #Initialization
 particles = {'X':[0,0.8,1,0],
@@ -55,35 +57,33 @@ for i in range(0,particles.shape[0]):
     
     indexes = particles.loc[[i],['Neighbors']].values[0][0]
     neighbor_particles = particles.loc[indexes]
-    
-    # Get the current particle's variables temporarily
-    xi = particles.loc[[i],['X']].values[0][0]
-    yi = particles.loc[[i],['Y']].values[0][0]
-    zi = particles.loc[[i],['Z']].values[0][0]
 
-    # Calculate the distance between points (only inside the neighborhood of i)
-    r = pd.Series(xi-neighbor_particles['X'])
-    neighbor_particles['rx'] = r
-    r = pd.Series(yi-neighbor_particles['Y'])
-    neighbor_particles['ry'] = r
-    r = pd.Series(zi-neighbor_particles['Z'])
-    neighbor_particles['rz'] = r
+    for axis in axis_array:
+        # Get the current particle's variables temporarily
+        ri = particles.loc[[i],[axis]].values[0][0]
+
+        # Calculate the distance between points (only inside the neighborhood of i)
+        r = pd.Series(xi-neighbor_particles[axis])
+        neighbor_particles['r' + axis.lower()] = r
     
     particles.at[i, 'Density'] = force_fields.Density(particles.iloc[i],neighbor_particles,h)
 
     particles.at[i, 'Pressure'] = k*(power(particles.iloc[i]['Density']/rho_0,7)-1)
-    
-print(particles)
 
 # Third iteration through all particles
 #  -Calculates all force fields (pressure,viscosity and others) for each particle i
 for i in range(0,particles.shape[0]):
-    particles.at[i, 'X Pressure Force'] = force_fields.Pressure(particles.iloc[i],neighbor_particles,h) # A force for each axis
-    particles.at[i, 'Y Viscosity Force'] = mu*force_fields.Viscosity(particles.iloc[i],neighbor_particles,h) # A force for each axis
-    
-particles['Total Force'] = particles['Pressure Force'] + particles['Viscosity Force']
-print(particles)
+    for axis in axis_array:
+        particles.at[i, axis + ' Pressure Force'] = force_fields.Pressure(particles.iloc[i],neighbor_particles,h,axis) # A force for each axis
+        particles.at[i, axis + ' Viscosity Force'] = mu*force_fields.Viscosity(particles.iloc[i],neighbor_particles,h,axis) # A force for each axis
 
-#  Calculating all new positions for each particle i
+# Calculating total force for each axis
+for axis in axis_array:
+        particles[axis + ' Total Force'] = particles[axis + ' Pressure Force'] + particles[axis + ' Viscosity Force']
+
+# particles['Y Total Force'] = particles['Y Total Force'] - particles['Mass'] * g -< Applying gravity
+
+# Calculating all new positions for each particle i
+
 
     
