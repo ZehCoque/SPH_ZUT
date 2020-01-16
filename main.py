@@ -145,7 +145,8 @@ while time < final_time:
     particles_dp1.to_csv(filename,index=False) #csv save
     filename = path + foldername + 'vtk/sph_' + str(round(time,3)) #vtk filename
     pointsToVTK(filename, particles_dp1['X'].values, particles_dp1['Y'].values, particles_dp1['Z'].values, 
-    data = {"Vx" : particles_dp1['X Velocity'].values, "Vy" : particles_dp1['Y Velocity'].values, "Vz" : particles_dp1['Z Velocity'].values})
+    data = {"Vx" : particles_dp1['X Velocity'].values, "Vy" : particles_dp1['Y Velocity'].values, "Vz" : particles_dp1['Z Velocity'].values,
+    "V" : sqrt(particles_dp1['X Velocity'].values**2+particles_dp1['Y Velocity'].values**2+particles_dp1['Z Velocity'].values**2)})
     
     #Making vtk group
     filename = path + foldername + 'vtk/sph_' + str(round(time,3)) + '.vtu' #vtk filename 
