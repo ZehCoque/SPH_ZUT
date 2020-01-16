@@ -2,6 +2,7 @@
 # count_row = df.shape[0]  # gives number of row count
 # count_col = df.shape[1]  # gives number of col count
 
+from pyevtk.hl import pointsToVTK, VtkGroup
 import pandas as pd
 from numpy import sqrt, power
 import force_fields
@@ -21,6 +22,7 @@ time = 0
 final_time = 10
 
 # Get path to save simulation results
+Path("./results/").mkdir(parents=True, exist_ok=True)
 path = "./results/"
 
 folders = listdir(path)
@@ -33,7 +35,9 @@ else:
         
     foldername = 'simulation ' + str(num+1) + '/'
 
-Path(path + foldername).mkdir(parents=True, exist_ok=True)
+Path(path + foldername + '/csv').mkdir(parents=True, exist_ok=True)
+Path(path + foldername + '/vtk').mkdir(parents=True, exist_ok=True)
+group = VtkGroup(path + foldername + 'vtk')
 
 #Initialization (arbitrary set of properties)
 particles = {'X':[0,0.8,1,0],
@@ -48,13 +52,17 @@ particles = {'X':[0,0.8,1,0],
 particles = pd.DataFrame(particles)
 
 #Saving initial conditions
-filename = path + foldername + str(round(time,3)) + '.csv'
-particles.to_csv(filename,index=False)
+filename = path + foldername + 'csv/sph_' + str(round(time,3)) + '.csv' #csv filename
+particles.to_csv(filename,index=False) #csv save
+filename = path + foldername + 'vtk/sph_' + str(round(time,3)) #vtk filename
+pointsToVTK(filename, particles['X'].values, particles['Y'].values, particles['Z'].values, 
+data = {"Vx" : particles['X Velocity'].values, "Vy" : particles['Y Velocity'].values, "Vz" : particles['Z Velocity'].values})
 
 # Stop when simulation time reaches final time
-while time <= final_time:
+while time < final_time:
 
     # Get info from last iteration
+    filename = path + foldername + 'csv/sph_' + str(round(time,3)) + '.csv'
     particles = pd.read_csv(filename)
     particles['Neighbors'] = particles.apply(lambda r: [],axis=1) # auxiliary addition
     
@@ -131,9 +139,18 @@ while time <= final_time:
     particles_dp1['Mass'] = particles['Mass']
     particles_dp1['Type'] = particles['Type']
     time = time + delta_t    
-    filename = path + foldername + str(round(time,3)) + '.csv'
 
-    particles_dp1.to_csv(filename)
+    #Saving each iteration
+    filename = path + foldername + 'csv/sph_' + str(round(time,3)) + '.csv' #csv filename
+    particles_dp1.to_csv(filename,index=False) #csv save
+    filename = path + foldername + 'vtk/sph_' + str(round(time,3)) #vtk filename
+    pointsToVTK(filename, particles_dp1['X'].values, particles_dp1['Y'].values, particles_dp1['Z'].values, 
+    data = {"Vx" : particles_dp1['X Velocity'].values, "Vy" : particles_dp1['Y Velocity'].values, "Vz" : particles_dp1['Z Velocity'].values})
     
-    print(str(time/final_time * 100) + '%')
-        
+    #Making vtk group
+    filename = path + foldername + 'vtk/sph_' + str(round(time,3)) + '.vtu' #vtk filename 
+    group.addFile(filepath = filename, sim_time = time)
+
+    #print(str(time/final_time * 100) + '%')
+    
+group.save()
