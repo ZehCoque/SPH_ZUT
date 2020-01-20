@@ -12,114 +12,145 @@ from particle_maker import make_prism as prism
 
 h = 2.
 k = 0.5
-rho_0 = 1
+rho_0 = 1000
 mu = 1
 axis_array = ['X','Y','Z'] # auxiliary axis
 g = 9.81
 radius = 1
-lam = 0.4
+mass = (4/3*radius)**3*rho_0
+lam_v = 0.4 # delta_t for velocity parameter
+lam_f = 0.4 # delta_t for force parameter
 time = 0
 final_time = 10
 iteration = 1
+cube_size = 8
 
 # Get path to save simulation results
 paths = utilities.get_paths("./results/")
 
-#Initialization (arbitrary set of properties)
-particles = prism(0,0,0,4,4,4,1,10,'Water')
+# Initialization
+# Moving Particles (Fluid particles)
+moving = prism(0,0,0,cube_size,cube_size,cube_size,radius,mass,'Water')
 
-particles = pd.DataFrame(particles)
+# Boundary particles
+boundary = prism(-4,0,0,-2,10,8,radius,mass,'Boundary')
+boundary = utilities.mergeDict(boundary,prism(32,0,0,2,10,8,radius,mass,'Boundary'))
+boundary = utilities.mergeDict(boundary,prism(-4,-2,0,20,-2,8,radius,mass,'Boundary'))
+boundary = utilities.mergeDict(boundary,prism(-4,-2,-4,20,11,-2,radius,mass,'Boundary'))
+boundary = utilities.mergeDict(boundary,prism(-4,-2,16,20,11,2,radius,mass,'Boundary'))
+            
+moving = pd.DataFrame(moving)
+boundary = pd.DataFrame(boundary)
 
-#Saving initial conditions
-utilities.save_csv(paths[2],iteration,particles)
-utilities.save_vtk(paths[0],iteration,particles)
+# Saving initial conditions
+utilities.save_csv(paths[2],iteration,moving)
+utilities.save_moving_vtk(paths[0],iteration,moving)
+utilities.save_boundary_vtk(paths[0],boundary)
 utilities.add_to_group(paths[0],iteration,time,paths[1])
-
-# VTK Group
 
 # Stop when simulation time reaches final time
 while time < final_time:
 
     # Get info from last iteration
     filename = paths[2] + '/iter_' + str(iteration)  + '.csv'
-    particles = pd.read_csv(filename)
-    print(particles)
-    particles['Neighbors'] = particles.apply(lambda r: [],axis=1) # auxiliary addition
+    moving = pd.read_csv(filename)
+    moving['Fluid Neighbors'] = moving.apply(lambda r: [],axis=1) # auxiliary addition
+    moving['Boundary Neighbors'] = moving.apply(lambda r: [],axis=1) # auxiliary addition
     
     # First iteration through all particles
     #  -Gets all neighbors for each particle i
-    for i in range(0,particles.shape[0]):
+    for i in range(0,moving.shape[0]):
 
-        # Get the current particle's variables temporarily
         for axis in axis_array:
-            ri = particles.loc[[i],[axis]].values[0][0]
+            ri = moving.loc[[i],[axis]].values[0][0]
+            r = pd.Series(ri-moving[axis])
+            moving['r' + axis.lower()] = r
+        
+        for axis in axis_array:
+            ri = moving.loc[[i],[axis]].values[0][0]
+            r = pd.Series(ri-boundary[axis])
+            boundary['r' + axis.lower()] = r
 
-            # Calculate the distance between points (only inside the neighborhood of i)
-            r = pd.Series(ri-particles[axis])
-            particles['r' + axis.lower()] = r
+        Fluid_Neighbors = pd.Series((abs(moving['rx']) <= h) & (abs(moving['ry']) <= h) & (abs(moving['rz']) <= h) & (sqrt(moving['rx']**2+moving['ry']**2+moving['rz']**2)!=0))
+        Boundary_Neighbors = pd.Series((abs(boundary['rx']) <= h) & (abs(boundary['ry']) <= h) & (abs(boundary['rz']) <= h) & (sqrt(boundary['rx']**2+boundary['ry']**2+boundary['rz']**2)!=0))
         
-        Neighbors = pd.Series((abs(particles['rx']) <= h) & (abs(particles['ry']) <= h) & (abs(particles['rz']) <= h) & (sqrt(particles['rx']**2+particles['ry']**2+particles['rz']**2)!=0))
-        
-        particles.at[i, 'Neighbors'] = Neighbors[Neighbors].index.values
+        moving.at[i, 'Fluid Neighbors'] = Fluid_Neighbors[Fluid_Neighbors].index.values
+        moving.at[i, 'Boundary Neighbors'] = Boundary_Neighbors[Boundary_Neighbors].index.values
 
     # Second iteration through all particles
     #  -Calculates density and pressure for each particle i
-    for i in range(0,particles.shape[0]):
+    for i in range(0,moving.shape[0]):
         
-        indexes = particles.loc[[i],['Neighbors']].values[0][0]
-        neighbor_particles = particles.loc[indexes]
+        # Moving particles
+        indexes = moving.loc[[i],['Fluid Neighbors']].values[0][0]
+        neighbor_moving = moving.loc[indexes]
         for axis in axis_array:
             # Get the current particle's variables temporarily
-            ri = particles.loc[[i],[axis]].values[0][0]
+            ri = moving.loc[[i],[axis]].values[0][0]
 
             # Calculate the distance between points (only inside the neighborhood of i)
-            r = pd.Series(ri-neighbor_particles[axis])
-            neighbor_particles['r' + axis.lower()] = r
-            
-        particles.at[i, 'Density'] = force_fields.Density(particles.iloc[i],neighbor_particles,h)
-        particles.at[i, 'Pressure'] = k*(power(particles.iloc[i]['Density']/rho_0,7)-1)
+            r = pd.Series(ri-neighbor_moving[axis])
+            neighbor_moving['r' + axis.lower()] = r
+        
+        # Boundary particles
+        indexes = moving.loc[[i],['Boundary Neighbors']].values[0][0]
+        neighbor_boundary = boundary.loc[indexes]
+        for axis in axis_array:
+            # Get the current particle's variables temporarily
+            ri = moving.loc[[i],[axis]].values[0][0]
+
+            # Calculate the distance between points (only inside the neighborhood of i)
+            r = pd.Series(ri-neighbor_boundary[axis])
+            neighbor_boundary['r' + axis.lower()] = r
+
+        moving.at[i, 'Density'] = force_fields.Density(moving.iloc[i],neighbor_moving,h) + force_fields.Density(moving.iloc[i],neighbor_boundary,h)
+        moving.at[i, 'Pressure'] = max(k*(power(moving.iloc[i]['Density']/rho_0,7)-1),0) # pressure should always be non-negative
 
     # Third iteration through all particles
     #  -Calculates all force fields (pressure,viscosity and others) for each particle i
-    for i in range(0,particles.shape[0]):
+    for i in range(0,moving.shape[0]):
         for axis in axis_array:
-            particles.at[i, axis + ' Pressure Force'] = force_fields.Pressure(particles.iloc[i],neighbor_particles,h,axis) # A force for each axis
-            particles.at[i, axis + ' Viscosity Force'] = mu*force_fields.Viscosity(particles.iloc[i],neighbor_particles,h,axis) # A force for each axis
+            moving.at[i, axis + ' Pressure Force'] = force_fields.Pressure(moving.iloc[i],neighbor_moving,h,axis) # A force for each axis
+            moving.at[i, axis + ' Viscosity Force'] = mu*force_fields.Viscosity(moving.iloc[i],neighbor_moving,h,axis) # A force for each axis
             
     #print(particles)
     # Calculating total force for each axis
     for axis in axis_array:
-        particles[axis + ' Total Force'] = particles[axis + ' Pressure Force'] + particles[axis + ' Viscosity Force']
+        moving[axis + ' Total Force'] = moving[axis + ' Pressure Force'] + moving[axis + ' Viscosity Force']
 
-    # particles['Y Total Force'] = particles['Y Total Force'] - particles['Mass'] * g -< Applying gravity
+    moving['Y Total Force'] = moving['Y Total Force'] - moving['Mass'] * g # -< Applying gravity
 
     # Calculating delta_t
-    if particles[['X Velocity','Y Velocity','Z Velocity']].max().max() == 0:
-        delta_t = 1e-4
+    if moving[['X Velocity','Y Velocity','Z Velocity']].max().max() == 0:
+        delta_t_v = float('inf')
     else:
-        delta_t = lam * radius*2 / abs(particles[['X Velocity','Y Velocity','Z Velocity']].max().max())
+        delta_t_v = lam_v * radius*2 / abs(moving[['X Velocity','Y Velocity','Z Velocity']].max().max())
     
+    delta_t_f = lam_f * sqrt(radius*2/abs(moving[['X Total Force','Y Total Force','Z Total Force']].max().max()))
+
+    delta_t = min(delta_t_f,delta_t_v)
+
     if delta_t + time > final_time:
         delta_t = final_time - time
     
     # Calculating all new positions for each particle i
-    particles_dp1 = pd.DataFrame()
+    moving_dp1 = pd.DataFrame()
     for axis in axis_array:
-        particles_dp1[axis + ' Velocity'] = particles[axis + ' Velocity'] + delta_t * particles[axis + ' Total Force']/particles['Mass']
-        particles_dp1[axis] = particles[axis] + delta_t * particles[axis + ' Total Force']/particles['Mass']
+        moving_dp1[axis + ' Velocity'] = moving[axis + ' Velocity'] + delta_t * moving[axis + ' Total Force']/moving['Mass']
+        moving_dp1[axis] = moving[axis] + delta_t * moving[axis + ' Total Force']/moving['Mass']
         
-    particles_dp1 = particles_dp1[['X','Y','Z','X Velocity','Y Velocity','Z Velocity']]
-    particles_dp1['Mass'] = particles['Mass']
-    particles_dp1['Type'] = particles['Type']
-    particles_dp1['Density'] = particles['Density']
-    particles_dp1['Pressure'] = particles['Pressure']
+    moving_dp1 = moving_dp1[['X','Y','Z','X Velocity','Y Velocity','Z Velocity']]
+    moving_dp1['Mass'] = moving['Mass']
+    moving_dp1['Type'] = moving['Type']
+    moving_dp1['Density'] = moving['Density']
+    moving_dp1['Pressure'] = moving['Pressure']
     time = time + delta_t    
 
     iteration = iteration + 1
     #Saving each iteration
-    utilities.save_csv(paths[2] + '2',iteration,particles)
-    utilities.save_csv(paths[2],iteration,particles_dp1)
-    utilities.save_vtk(paths[0],iteration,particles_dp1)
+    utilities.save_csv(paths[2] + '2',iteration,moving)
+    utilities.save_csv(paths[2],iteration,moving_dp1)
+    utilities.save_moving_vtk(paths[0],iteration,moving_dp1)
     
     #Making vtk group
     utilities.add_to_group(paths[0],iteration,time,paths[1])
