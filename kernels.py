@@ -6,7 +6,7 @@ import pandas as pd
 
 class Cubic_Spline:
     def __init__(self,r=1.0,h=2.0,dim=3.0,step=1/1e6):
-        self.r = r
+        self.r = abs(r)
         self.h = h
         self.step = step
         self.q = r/h
@@ -42,7 +42,7 @@ class Cubic_Spline:
 
 class B_Spline:
     def __init__(self,r=1,h=2,dim=3,step=1/1e6):
-        self.r = r
+        self.r = abs(r)
         self.h = h
         self.step = step
         self.q = r/h
@@ -77,7 +77,7 @@ class B_Spline:
 
 class Poly_6:
     def __init__(self,r=1,h=2,step=1/1e6):
-        self.r = r
+        self.r = abs(r)
         self.h = h
         self.step = step
         
@@ -108,7 +108,7 @@ class Poly_6:
 
 class Spiky: #Recommended for pressure
     def __init__(self,r=1,h=2,step=1/1e6):
-        self.r = r
+        self.r = abs(r)
         self.h = h
         self.step = step
 
@@ -139,7 +139,7 @@ class Spiky: #Recommended for pressure
 
 class Viscosity:
     def __init__(self,r=1,h=2,step=1/1e6):
-        self.r = r
+        self.r = abs(r)
         self.h = h
         self.step = step
     
