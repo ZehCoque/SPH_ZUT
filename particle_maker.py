@@ -1,6 +1,6 @@
 from numpy import linspace
 
-def make_prism(x,y,z,num_x,num_y,num_z,radius,mass,type_,vx=0.,vy=0.,vz=0.):
+def make_prism(x,y,z,num_x,num_y,num_z,radius,mass,type_,vx=0.,vy=0.,vz=0.,count=0,prism={}):
     ''' filaname is the name of the file this function will save the particles. \n
     x, y and z are the coordinates of the first particle of the prism. \n
     num_x, num_y and num_z are the numbers of particles for each axis (first particle included).
@@ -11,17 +11,6 @@ def make_prism(x,y,z,num_x,num_y,num_z,radius,mass,type_,vx=0.,vy=0.,vz=0.):
     vx = float(vx)
     vy = float(vy)
     vz = float(vz)
-
-    prism = {'X': [],
-            'Y': [],
-            'Z': [],
-                'X Velocity':[],
-                'Y Velocity':[],
-                'Z Velocity':[],
-                'Pressure': [],
-                'Density': [],
-                'Mass':[],
-                'Type':[]}
 
     x_array = [float(x)]
     for i in range(1,abs(num_x)):
@@ -36,10 +25,16 @@ def make_prism(x,y,z,num_x,num_y,num_z,radius,mass,type_,vx=0.,vy=0.,vz=0.):
     for i in x_array:
         for j in y_array:
             for k in z_array:
-                array = [i,j,k,vx,vy,vz,0.,0.,mass,type_]
-                count = 0
-                for var in prism:
-                    prism[var].append(array[count])
-                    count = count + 1
-    
+                prism[count] = {'X': i,
+                'Y': j,
+                'Z': k,
+                'X Velocity':vx,
+                'Y Velocity':vy,
+                'Z Velocity':vz,
+                'Pressure': 0.,
+                'Density': 0.,
+                'Mass':mass,
+                'Type':type_}
+                count = count + 1
+
     return prism

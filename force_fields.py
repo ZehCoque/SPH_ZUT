@@ -1,44 +1,77 @@
 import kernels
 
+
 # Smoothed density
-def Density(current_particle,neighbor_particles,h):
+def Density(dict_moving,dict_boundary,i,h):
     density = 0
-    string_array = ['rx','ry','rz']
-    for j in range(0,neighbor_particles.shape[0]):
-        for string in string_array:
-            #density = density + neighbor_particles.iloc[j]['Mass']*(current_particle['X Velocity']-neighbor_particles.iloc[j]['X Velocity'])*\
-            #kernels.Cubic_Spline(abs(neighbor_particles.iloc[j]['rx']),h).Gradient()
-            density = density + neighbor_particles.iloc[j]['Mass']*kernels.Cubic_Spline(neighbor_particles.iloc[j][string],h).Kernel()
-        
+    neighbors = { key: dict_moving[key] for key in dict_moving[i]['Fluid Neighbors'] }
+    count = 0
+    for j in dict_moving[i]['Fluid Neighbors']:
+        for axis in range(0,3):
+            density = density + neighbors[j]['Mass']*kernels.Cubic_Spline(dict_moving[i]['moving_r'][count][axis],h).Kernel()
+        count = count + 1
+    
+    neighbors = { key: dict_boundary[key] for key in dict_moving[i]['Boundary Neighbors'] }
+    count = 0
+    for j in dict_moving[i]['Boundary Neighbors']:
+        for axis in range(0,3):
+            density = density + neighbors[j]['Mass']*kernels.Cubic_Spline(dict_moving[i]['boundary_r'][count][axis],h).Kernel()
+        count = count + 1
+    
     return density
 
 # Smoothed pressure force
-def Pressure(current_particle,neighbor_particles,h,axis):
-    
-    pressure = 0
+def Pressure(dict_moving,dict_boundary,i,h):
     R = 0.006 # Tensile instability term
-    string = 'r' + axis.lower()
-    for j in range(0,neighbor_particles.shape[0]):
-        fac = 1
-        if neighbor_particles.iloc[j][string] < 0:
-            fac = -1
-        pressure = fac * pressure + neighbor_particles.iloc[j]['Mass']* \
-        ((current_particle['Pressure']/current_particle['Density']**2)+(neighbor_particles.iloc[j]['Pressure']/neighbor_particles.iloc[j]['Density']**2))* \
-        (1+R*(kernels.Cubic_Spline(abs(neighbor_particles.iloc[j][string]),h).Kernel()/kernels.Cubic_Spline(0,h).Kernel())**4)* \
-        kernels.Cubic_Spline(neighbor_particles.iloc[j][string],h).Gradient()
-    return -pressure
+
+    pressure = [0.,0.,0.]
+    neighbors = { key: dict_moving[key] for key in dict_moving[i]['Fluid Neighbors'] }
+    count = 0
+    for j in dict_moving[i]['Fluid Neighbors']:
+        for axis in range(0,3):
+            fac = 1
+            if dict_moving[i]['moving_r'][count][axis] > 0:
+                fac = -1
+            elif dict_moving[i]['moving_r'][count][axis] == 0:
+                continue
+            pressure[axis] = pressure[axis] - fac * neighbors[j]['Mass']* \
+            ((dict_moving[i]['Pressure']/dict_moving[i]['Density']**2)+(neighbors[j]['Pressure']/neighbors[j]['Density']**2))* \
+            (1+R*(kernels.Cubic_Spline(dict_moving[i]['moving_r'][count][axis],h).Kernel()/kernels.Cubic_Spline(0,h).Kernel())**4)* \
+            kernels.Cubic_Spline(dict_moving[i]['moving_r'][count][axis],h).Gradient()
+        count = count + 1
+
+    neighbors = { key: dict_boundary[key] for key in dict_moving[i]['Boundary Neighbors'] }
+    count = 0
+    for j in dict_moving[i]['Boundary Neighbors']:
+        for axis in range(0,3):
+            fac = 1
+            if dict_moving[i]['boundary_r'][count][axis] > 0:
+                fac = -1
+            elif dict_moving[i]['boundary_r'][count][axis] == 0:
+                continue
+            pressure[axis] = pressure[axis] - fac * neighbors[j]['Mass']* \
+            2*dict_moving[i]['Pressure']/dict_moving[i]['Density']**2* \
+            (1+R*(kernels.Cubic_Spline(dict_moving[i]['boundary_r'][count][axis],h).Kernel()/kernels.Cubic_Spline(0,h).Kernel())**4)* \
+            kernels.Cubic_Spline(dict_moving[i]['boundary_r'][count][axis],h).Gradient()
+        count = count + 1
+
+    return pressure
 
 # Smoothed Viscosity
 
-def Viscosity(current_particle,neighbor_particles,h,axis):
-    
-    viscosity = 0
-    string = ['r' + axis.lower(),axis.upper() + ' Velocity']
-    for j in range(0,neighbor_particles.shape[0]):
-        viscosity = viscosity + neighbor_particles.iloc[j]['Mass']*(neighbor_particles.iloc[j][string[1]]-current_particle[string[1]])/neighbor_particles.iloc[j]['Density']*\
-        kernels.Cubic_Spline(neighbor_particles.iloc[j][string[0]],h).Laplacian()
+def Viscosity(dict_moving,i,h,mu):
+    viscosity = [0.,0.,0.]
+    neighbors = { key: dict_moving[key] for key in dict_moving[i]['Fluid Neighbors'] }
+    count = 0
+    for j in dict_moving[i]['Fluid Neighbors']:
+        axis_num = 0
+        for axis in ['X Velocity','Y Velocity','Z Velocity']:
+            viscosity = viscosity + neighbors[j]['Mass']*(neighbors[j][axis]-dict_moving[i][axis])/neighbors[j]['Density']*\
+            kernels.Cubic_Spline(dict_moving[i]['moving_r'][count][axis_num],h).Laplacian()
+            axis_num = axis_num+1
+        count = count + 1
         
-    return viscosity
+    return mu*viscosity
 
 # Smoothed Repulsion Force
 def Repulsion(current_particle,neighbor_particles,h,axis):

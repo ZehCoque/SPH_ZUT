@@ -133,3 +133,5 @@ v_env_SPHZUT
 venv_SPHZUT
 include
 results
+test.py
+main.prof

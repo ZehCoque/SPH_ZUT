@@ -1,7 +1,8 @@
 from pyevtk.hl import pointsToVTK, VtkGroup
 from pathlib import Path
 from os import listdir
-from numpy import sqrt
+from numpy import sqrt, asarray
+import csv
 
 def get_paths(main_folder):
     '''Make directories and return the paths for the vtk, group and csv folders'''
@@ -22,28 +23,54 @@ def get_paths(main_folder):
             
         foldername = 'simulation ' + str(num+1) + '/'
 
-    Path(path + foldername + '/csv2').mkdir(parents=True, exist_ok=True) # temporary
     Path(path + foldername + '/csv').mkdir(parents=True, exist_ok=True)
     Path(path + foldername + '/vtk').mkdir(parents=True, exist_ok=True)
     group = VtkGroup(path + foldername + 'moving_particles')
 
     return [path + foldername + '/vtk',group,path + foldername + '/csv']
 
-def save_csv(path,iteration,df):
+def save_csv(path,iteration,dictionary):
     filename = path + '/iter_' + str(iteration) + '.csv' #csv filename
-    df.to_csv(filename,index=False) #csv save
+    try:
+        headers = dictionary[0].keys()
+    except:
+        headers = dictionary.keys()
+    try:
+        with open(filename, 'w') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=headers,lineterminator = '\n')
+            writer.writeheader()
+            for i in dictionary:
+                try:
+                    writer.writerow(dictionary[i])
+                except:
+                    writer.writerow(dictionary)
+                    break
 
-def save_moving_vtk(path,iteration,df):
+    except IOError:
+        print()
+        print('-'*40)
+        print("Error on function save_csv")
+        print()
+
+def save_moving_vtk(path,iteration,dictionary):
     filename = path + '/iter_' + str(iteration)  #vtk filename
-    pointsToVTK(filename, df['X'].values, df['Y'].values, df['Z'].values, 
-    data = {"Vx" : df['X Velocity'].values, "Vy" : df['Y Velocity'].values, "Vz" : df['Z Velocity'].values,
-    "V" : sqrt( df['X Velocity'].values**2+ df['Y Velocity'].values**2+ df['Z Velocity'].values**2),
-    "rho" : df['Density'].values,"p" : df['Pressure'].values})
+    try:
+        pointsToVTK(filename, asarray([dictionary[d].get('X') for d in dictionary]), asarray([dictionary[d].get('Y') for d in dictionary]), asarray([dictionary[d].get('Z') for d in dictionary]), 
+        data = {"Vx" : asarray([dictionary[d].get('X Velocity') for d in dictionary]), "Vy" : asarray([dictionary[d].get('Z Velocity') for d in dictionary]), "Vz" : asarray([dictionary[d].get('Z Velocity') for d in dictionary]),
+        "rho" : asarray([dictionary[d].get('Density') for d in dictionary]),"p" : asarray([dictionary[d].get('Pressure') for d in dictionary])})
+    except:
+        pointsToVTK(filename, asarray([dictionary.get('X') for d in dictionary]), asarray([dictionary.get('Y') for d in dictionary]), asarray([dictionary.get('Z') for d in dictionary]), 
+        data = {"Vx" : asarray([dictionary.get('X Velocity') for d in dictionary]), "Vy" : asarray([dictionary.get('Z Velocity') for d in dictionary]), "Vz" : asarray([dictionary.get('Z Velocity') for d in dictionary]),
+        "rho" : asarray([dictionary.get('Density') for d in dictionary]),"p" : asarray([dictionary.get('Pressure') for d in dictionary])})
 
-def save_boundary_vtk(path,df):
+def save_boundary_vtk(path,dictionary):
     filename = path + '/boundary' #vtk filename
-    pointsToVTK(filename, df['X'].values, df['Y'].values, df['Z'].values,
-    data = {"rho" : df['Density'].values,"p" : df['Pressure'].values})
+    try:
+        pointsToVTK(filename, asarray([dictionary[d].get('X') for d in dictionary]), asarray([dictionary[d].get('Y') for d in dictionary]), asarray([dictionary[d].get('Z') for d in dictionary]),
+        data = { "rho" : asarray([dictionary[d].get('Density') for d in dictionary]),"p" : asarray([dictionary[d].get('Pressure') for d in dictionary])})
+    except:
+        pointsToVTK(filename, asarray([dictionary.get('X') for d in dictionary]), asarray([dictionary.get('Y') for d in dictionary]), asarray([dictionary.get('Z') for d in dictionary]),
+        data = { "rho" : asarray([dictionary.get('Density') for d in dictionary]),"p" : asarray([dictionary.get('Pressure') for d in dictionary])})
 
 def add_to_group(path,iteration,time,group):
     filename = path + '/iter_' + str(iteration)  + '.vtu' #vtk filename 
@@ -52,12 +79,21 @@ def add_to_group(path,iteration,time,group):
 def save_group(group):
     group.save()
 
-def mergeDict(dict1, dict2):
-   ''' Merge dictionaries and keep values of common keys in list'''
-   for key, values in dict1.items():
-       if key in dict1 and key in dict2:
-           dict2[key] = dict2[key] + values
+def read_csv(filename):
+    with open(filename, 'r') as file:
+        reader = csv.reader(file)
 
- 
-   return dict2
+        header, *data = reader
+        csv_dict = {}
+        for i in range(0,len(data)):
+            for row in data:
+                csv_dict[i] = {key: convert_to_float(value) for key, value in zip(header, row)}
 
+    return csv_dict
+
+def convert_to_float(value):
+        try:
+            value=float(value)
+        except ValueError:
+            pass    
+        return value
