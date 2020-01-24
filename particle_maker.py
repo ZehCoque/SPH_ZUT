@@ -1,12 +1,15 @@
-from numpy import linspace
+from numpy import linspace, array
+import sys
 
-def make_prism(x,y,z,num_x,num_y,num_z,radius,mass,type_,vx=0.,vy=0.,vz=0.,count=0,prism={}):
-    ''' filaname is the name of the file this function will save the particles. \n
+def make_prism(x,y,z,num_x,num_y,num_z,radius,mass,type_,vx=0.,vy=0.,vz=0.,dict_index=0,prism={}):
+    ''' returns a prism given the initial coordinates and the number of particles in each axis \n
     x, y and z are the coordinates of the first particle of the prism. \n
     num_x, num_y and num_z are the numbers of particles for each axis (first particle included).
     They can be either positive or negative. Negative numbers plot particles in the oposite direction of the global axis. \n
     radius, mass and type stands for the radius, mass and type for all particles in the prism. \n
-    vx, vy and vz are the velocity coordinates for all the particles in the prism. This is optional and the dafult value is 0. \n'''
+    vx, vy and vz are the velocity coordinates for all the particles in the prism. This is optional and the dafult value is 0. \n
+    dict_index is the first index of the dictionary if one wants to continue to build from a previous dictionary \n
+    prism is a previous dictionary'''
 
     vx = float(vx)
     vy = float(vy)
@@ -25,16 +28,40 @@ def make_prism(x,y,z,num_x,num_y,num_z,radius,mass,type_,vx=0.,vy=0.,vz=0.,count
     for i in x_array:
         for j in y_array:
             for k in z_array:
-                prism[count] = {'X': i,
-                'Y': j,
-                'Z': k,
-                'X Velocity':vx,
-                'Y Velocity':vy,
-                'Z Velocity':vz,
-                'Pressure': 0.,
-                'Density': 0.,
-                'Mass':mass,
-                'Type':type_}
-                count = count + 1
+                prism[dict_index] = {'X': i,
+                                     'Y': j,
+                                     'Z': k,
+                                     'X Velocity':vx,
+                                     'Y Velocity':vy,
+                                     'Z Velocity':vz,
+                                     'Pressure': 0.,
+                                     'Density': 0.,
+                                     'Mass':mass,
+                                     'Type':type_}
+                dict_index = dict_index + 1
 
     return prism
+
+def make_prism2(coord_init,coord_final,radius,mass,type_,vx=0.,vy=0.,vz=0.,dict_index=0,prism={}):
+    ''' returns a prism given the initial and final coordinates \n
+    coord_init -> array(x,y,z) of the initial coordinates \n
+    coord_final -> array(x,y,z) of the final coordinates \n
+    See make_prism function for the other variables'''
+    
+    
+    distance = array(coord_final) - array(coord_init)
+
+    if distance[0]/radius%1 != 0 and distance[1]/radius%1 != 0 and distance[2]/radius%1 != 0:
+        print()
+        print("-" * 40)
+        print('Division by radius did not return a whole number while trying to make a prism')    
+        sys.exit(1)
+    else:
+        
+        num_x = int((coord_final[0] - coord_init[0])/radius)
+        num_y = int((coord_final[1] - coord_init[1])/radius)
+        num_z = int((coord_final[2] - coord_init[2])/radius)
+
+        return make_prism(coord_init[0],coord_init[1],coord_init[2],num_x,num_y,num_z,radius,mass,type_,vx,vy,vz,dict_index,prism)
+
+

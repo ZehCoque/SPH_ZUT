@@ -3,6 +3,7 @@ from pathlib import Path
 from os import listdir
 from numpy import sqrt, asarray
 import csv
+import time
 
 def get_paths(main_folder):
     '''Make directories and return the paths for the vtk, group and csv folders'''
@@ -64,7 +65,7 @@ def save_moving_vtk(path,iteration,dictionary):
         "rho" : asarray([dictionary.get('Density') for d in dictionary]),"p" : asarray([dictionary.get('Pressure') for d in dictionary])})
 
 def save_boundary_vtk(path,dictionary):
-    filename = path + '/boundary' #vtk filename
+    filename = path.replace('/vtk','')  + '/boundary' #vtk filename
     try:
         pointsToVTK(filename, asarray([dictionary[d].get('X') for d in dictionary]), asarray([dictionary[d].get('Y') for d in dictionary]), asarray([dictionary[d].get('Z') for d in dictionary]),
         data = { "rho" : asarray([dictionary[d].get('Density') for d in dictionary]),"p" : asarray([dictionary[d].get('Pressure') for d in dictionary])})
@@ -79,21 +80,18 @@ def add_to_group(path,iteration,time,group):
 def save_group(group):
     group.save()
 
-def read_csv(filename):
-    with open(filename, 'r') as file:
-        reader = csv.reader(file)
-
-        header, *data = reader
-        csv_dict = {}
-        for i in range(0,len(data)):
-            for row in data:
-                csv_dict[i] = {key: convert_to_float(value) for key, value in zip(header, row)}
-
-    return csv_dict
-
-def convert_to_float(value):
-        try:
-            value=float(value)
-        except ValueError:
-            pass    
-        return value
+def info(current_time, final_time, start_time, now,delta_t, message='Simulating...'):
+        print(
+            "\r{} |{}{}| {}% -/-/- Current simulation time: {} s -/-/- Time step: {} s -/-/- Elapsed time: {} s"
+            .format(
+                message,
+                "#" * int(25 * current_time / final_time),
+                " " * (25 - int(25 * current_time / final_time)),
+                int(100 * current_time / final_time),
+                round(current_time,6),
+                round(delta_t,6),
+                round(abs(start_time - now)),
+            ),
+            flush=True,
+            end=""
+        )
