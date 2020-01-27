@@ -66,12 +66,8 @@ def save_moving_vtk(path,iteration,dictionary):
 
 def save_boundary_vtk(path,dictionary):
     filename = path.replace('/vtk','')  + '/boundary' #vtk filename
-    try:
-        pointsToVTK(filename, asarray([dictionary[d].get('X') for d in dictionary]), asarray([dictionary[d].get('Y') for d in dictionary]), asarray([dictionary[d].get('Z') for d in dictionary]),
-        data = { "rho" : asarray([dictionary[d].get('Density') for d in dictionary]),"p" : asarray([dictionary[d].get('Pressure') for d in dictionary])})
-    except:
-        pointsToVTK(filename, asarray([dictionary.get('X') for d in dictionary]), asarray([dictionary.get('Y') for d in dictionary]), asarray([dictionary.get('Z') for d in dictionary]),
-        data = { "rho" : asarray([dictionary.get('Density') for d in dictionary]),"p" : asarray([dictionary.get('Pressure') for d in dictionary])})
+    pointsToVTK(filename, asarray([dictionary[d].get('X') for d in dictionary]), asarray([dictionary[d].get('Y') for d in dictionary]), asarray([dictionary[d].get('Z') for d in dictionary]),
+    data = {"rho" : asarray([dictionary[d].get('Density') for d in dictionary]) })
 
 def add_to_group(path,iteration,time,group):
     filename = path + '/iter_' + str(iteration)  + '.vtu' #vtk filename 
