@@ -1,5 +1,5 @@
 
-from numpy import sqrt, array, pi
+from numpy import sqrt, array, pi, dot, sign, around
 import csv
 import force_fields
 import kernels
@@ -16,8 +16,8 @@ rho_0 = 1000 # Density at rest
 mass = 1 # temporary mass of each particle
 
 #boundary = particle_maker.make_prism2([-0.2,-0.05,-0.2],[0.2,0,0.2],radius,mass,'Boundary')
-boundary = particle_maker.make_prism2([-0.2,0,-0.2],[0.2,-0.05,0.2],radius,0,'Stainless Steel',dict_index=0,prism={})
-moving = particle_maker.make_prism2([0,0.2,0],[0.2,0.4,.2],radius,mass,'Water',dict_index=0,prism={})
+boundary = particle_maker.make_prism2([-0.2,0,-0.2],[0.2,-0.025,0.2],radius,0,'Stainless Steel',dict_index=0,prism={})
+moving = particle_maker.make_prism2([0,0.075,0],[0.025,0.075,0.025],2*radius,mass,'Water',dict_index=0,prism={})
 
 N = len(moving)
 
@@ -72,18 +72,32 @@ for i in range(0,len(boundary)):
     ri_y = boundary[i]['Y']
     ri_z = boundary[i]['Z']
     W = 0
-    boundary[i]['r'] = []
     boundary[i]['psi'] = 0
-    for j in range(0,N):
+    for j in range(0,len(boundary)):
         rx = ri_x-boundary[j]['X']
         ry = ri_y-boundary[j]['Y']
         rz = ri_z-boundary[j]['Z']
         r = sqrt(rx**2+ry**2+rz**2)
 
         if r <= h:
-            boundary[i]['r'] = r
             W += kernels.Poly_6(r,h).Kernel()
     boundary[i]['psi'] = rho_0/W
+
+#  -Gets initial boundary neighbors for each moving particle i
+for i in range(0,N):
+    moving[i]['Boundary Neighbors'] = []
+    moving[i]['boundary_r'] = []
+    ri_x = moving[i]['X']
+    ri_y = moving[i]['Y']
+    ri_z = moving[i]['Z']
+    for j in range(0,len(boundary)):
+            rx = ri_x-boundary[j]['X']
+            ry = ri_y-boundary[j]['Y']
+            rz = ri_z-boundary[j]['Z']
+
+            if sqrt(rx**2+ry**2+rz**2) <= h:
+                moving[i]['boundary_r'].append([rx,ry,rz])
+                moving[i]['Boundary Neighbors'].append(j)
 
 # Used constants
 k = 3 # Gas stiffness
@@ -102,6 +116,7 @@ beta = 0 # Second artificial viscosity term
 w = 50 # steps for density correction
 correction = True # True for correction in the first iteration
 delta_friction = 1 # Friction coefficient between 2 interaction surfaces
+c_R = 0.8 # coefficient of restitution (between 0 and 1)
 
 #Sound velocities (m/s)
 c= {'Water':1480,
@@ -140,50 +155,35 @@ while time < final_time:
                     moving[i]['Fluid Neighbors'].append(j)
 
     # Second iteration through all particles
-    #  -Gets boundary neighbors for each moving particle i
-    for i in range(0,N):
-        moving[i]['Boundary Neighbors'] = []
-        moving[i]['boundary_r'] = []
-        ri_x = moving[i]['X']
-        ri_y = moving[i]['Y']
-        ri_z = moving[i]['Z']
-        for j in range(0,len(boundary)):
-                rx = ri_x-boundary[j]['X']
-                ry = ri_y-boundary[j]['Y']
-                rz = ri_z-boundary[j]['Z']
-
-                if sqrt(rx**2+ry**2+rz**2) <= h:
-                    moving[i]['boundary_r'].append([rx,ry,rz])
-                    moving[i]['Boundary Neighbors'].append(j)
-
-    # Third iteration through all particles
     #  -Calculates density and pressure for each particle i
     for i in range(0,N):
         moving[i]['Density'] = force_fields.Density(moving,i,h,correction,rho_0,'Poly_6',boundary)
         moving[i]['Pressure'] = k*((moving[i]['Density']/rho_0)**gamma-1)
 
-    # Fourth iteration through all particles
+    # Third iteration through all particles
     #  -Calculates all INTERNAL force fields (pressure,viscosity and others) for each particle i
     for i in range(0,N):
         moving[i]['Pressure Force'] = force_fields.Pressure(moving,i,h,alpha,beta,c,'Spiky')
         moving[i]['Viscosity Force'] = force_fields.Viscosity_Kernel(moving,i,h,mu,'Viscosity')
         moving[i]['Surface Tension Force'] = force_fields.Surface_Tension(moving,i,h,delta,'Poly_6')
 
-    # Fifth iteration through all particles
+    # Fourth iteration through all particles
     #  -Calculates all EXTERNAL force fields (pressure,viscosity and others) for each particle i
     for i in range(0,N):
-        neighbors = { key: moving[key] for key in moving[i]['Boundary Neighbors'] }
+        neighbors = { key: boundary[key] for key in moving[i]['Boundary Neighbors'] }
+        moving[i]['Boundary-Fluid Pressure'] = 0
+        moving[i]['Boundary-Fluid Friction'] = 0
         if len(neighbors) > 0:
-            moving[i]['Boundary-Fluid Pressure'] = force_fields.Boundary_Fluid_Pressure(moving[i],neighbors,h,'Poly_6')
-            moving[i]['Boundary-Fluid Friction'] = force_fields.Boundary_Fluid_Friction(moving[i],neighbors,h,delta_friction,c,'Poly_6')
-        else:
-            moving[i]['Boundary-Fluid Pressure'] = 0
-            moving[i]['Boundary-Fluid Friction'] = 0
+            count = 0
+            for j in neighbors:
+                moving[i]['Boundary-Fluid Pressure'] += force_fields.Boundary_Fluid_Pressure(moving[i],neighbors[j],h,count,'Spiky')
+                moving[i]['Boundary-Fluid Friction'] += force_fields.Boundary_Fluid_Friction(moving[i],neighbors[j],h,delta_friction,c,count,'Poly_6')
+                count += 1
 
     max_force = 0
     # Calculating total force for each axis
     for i in range(0,N):
-            moving[i]['Total Force'] = moving[i]['Pressure Force'] + moving[i]['Viscosity Force'] + moving[i]['Surface Tension Force'] + moving[i]['Density'] * g + moving[i]['Boundary-Fluid Pressure'] + moving[i]['Boundary-Fluid Friction']
+            moving[i]['Total Force'] = moving[i]['Pressure Force'] + moving[i]['Viscosity Force'] + moving[i]['Surface Tension Force'] + rho_0 * g + moving[i]['Boundary-Fluid Pressure'] + moving[i]['Boundary-Fluid Friction']
             for j in range(0,3):
                 if abs(moving[i]['Total Force'][j]) > abs(max_force):
                     max_force = abs(moving[i]['Total Force'][j])
@@ -217,9 +217,56 @@ while time < final_time:
     for i in range(0,N):
         count = 0
         for j in ['X','Y','Z']:
-            moving[i][j + " Velocity"] = moving[i][j + " Velocity"] + delta_t * moving[i]['Total Force'][count]/moving[i]['Mass']
+            moving[i][j + " Velocity"] = moving[i][j + " Velocity"] + delta_t * moving[i]['Total Force'][count]/moving[i]['Density']
             moving[i][j] = moving[i][j] + delta_t * moving[i][j + ' Velocity']
             count = count + 1
+
+    # Collision Handling
+
+    # Collision detection
+    colliders = []
+    for i in range(0,N):
+        moving[i]['Boundary Neighbors'] = []
+        moving[i]['boundary_r'] = []
+        ri_x = moving[i]['X']
+        ri_y = moving[i]['Y']
+        ri_z = moving[i]['Z']
+        for j in range(0,len(boundary)):
+                rx = ri_x-boundary[j]['X']
+                ry = ri_y-boundary[j]['Y']
+                rz = ri_z-boundary[j]['Z']
+                r = sqrt(rx**2+ry**2+rz**2)
+                if r <= h:
+                    moving[i]['boundary_r'].append([rx,ry,rz])
+                    moving[i]['Boundary Neighbors'].append(j)
+                
+                if r < 2*radius:
+                    colliders.append([i,j])
+
+    # Collision Response
+    for i in range(0,len(colliders)):
+        fluid_collider = moving[colliders[i][0]]
+        boundary_collider = boundary[colliders[i][1]]
+
+        r_index = fluid_collider['Boundary Neighbors'].index(colliders[i][1])
+        string = ['X Velocity','Y Velocity','Z Velocity']
+        d = abs(sqrt(fluid_collider['boundary_r'][r_index][0]**2+fluid_collider['boundary_r'][r_index][1]**2+fluid_collider['boundary_r'][r_index][2]**2) - 2*radius)
+        new_vel = array([0.,0.,0.])
+        mag_old_vel = sqrt(fluid_collider[string[0]]**2+fluid_collider[string[1]]**2+fluid_collider[string[2]]**2)
+        direction = sign(around(fluid_collider['boundary_r'][r_index], decimals = 10))
+        normal = -1*direction
+          
+        old_vel = []
+        for v_axis in string:
+             old_vel.append(fluid_collider[v_axis])
+        
+        new_vel = old_vel - (1+c_R*d/(delta_t*mag_old_vel))*dot(old_vel,normal)*normal
+
+        count = 0
+        for v_axis in string:
+            moving[colliders[i][0]][v_axis] = new_vel[count]
+            moving[colliders[i][0]][v_axis[0]] = moving[colliders[i][0]][v_axis[0]] + delta_t * new_vel[count]
+            count += 1
 
     time = time + delta_t    
 
