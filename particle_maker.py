@@ -51,17 +51,79 @@ def make_prism2(coord_init,coord_final,radius,mass,type_,vx=0.,vy=0.,vz=0.,dict_
     
     distance = array(coord_final) - array(coord_init)
 
-    if distance[0]/radius%1 != 0 and distance[1]/radius%1 != 0 and distance[2]/radius%1 != 0:
+    if distance[0]/(2*radius)%1 != 0 and distance[1]/(2*radius)%1 != 0 and distance[2]/(2*radius)%1 != 0:
         print()
         print("-" * 40)
         print('Division by radius did not return a whole number while trying to make a prism')    
         sys.exit(1)
     else:
         
-        num_x = int((coord_final[0] - coord_init[0])/radius)
-        num_y = int((coord_final[1] - coord_init[1])/radius)
-        num_z = int((coord_final[2] - coord_init[2])/radius)
+        num_x = int((coord_final[0] - coord_init[0])/(2*radius))
+        num_y = int((coord_final[1] - coord_init[1])/(2*radius))
+        num_z = int((coord_final[2] - coord_init[2])/(2*radius))
 
         return make_prism(coord_init[0],coord_init[1],coord_init[2],num_x,num_y,num_z,radius,mass,type_,vx,vy,vz,dict_index,prism)
 
+def make_box(coord_init,coord_final,radius,mass,type_,vx=0.,vy=0.,vz=0.,dict_index=0,box={}):
 
+    distance = array(coord_final) - array(coord_init)
+
+    if distance[0]/(2*radius)%1 != 0 and distance[1]/(2*radius)%1 != 0 and distance[2]/(2*radius)%1 != 0:
+        print()
+        print("-" * 40)
+        print('Division by radius did not return a whole number while trying to make a prism')    
+        sys.exit(1)
+    else:
+        
+        num_x = int((coord_final[0] - coord_init[0])/(2*radius))
+        num_y = int((coord_final[1] - coord_init[1])/(2*radius))
+        num_z = int((coord_final[2] - coord_init[2])/(2*radius))
+
+        vx = float(vx)
+        vy = float(vy)
+        vz = float(vz)    
+
+        x_array = [float(coord_init[0])]
+        for i in range(1,abs(num_x)):
+            x_array.append(float(x_array[-1]+2*radius))
+        y_array = [float(coord_init[1])]
+        for i in range(1,abs(num_y)):
+            y_array.append(float(y_array[-1]+2*radius))
+        z_array = [float(coord_init[2])]
+        for i in range(1,abs(num_z)):
+            z_array.append(float(z_array[-1]+2*radius))
+
+        for i in x_array:
+            for j in y_array:
+                for k in z_array:
+                    if round(i,3) in coord_init or round(j,3) in coord_init or round(k,3) in coord_init:
+                        box[dict_index] = {'X': i,
+                                           'Y': j,
+                                           'Z': k,
+                                           'X Velocity':vx,
+                                           'Y Velocity':vy,
+                                           'Z Velocity':vz,
+                                           'Pressure': 0.,
+                                           'Density': 0.,
+                                           'Mass':mass,
+                                           'Type':type_}
+                        dict_index = dict_index + 1
+
+        for i in x_array:
+            for j in y_array:
+                for k in z_array:
+                    if (round(i+2*radius,3) in coord_final or round(j+2*radius,3) in coord_final or round(k+2*radius,3) in coord_final) and \
+                    (round(i,3) not in coord_init and round(j,3) not in coord_init and round(k,3) not in coord_init):
+                        box[dict_index] = {'X': i,
+                                           'Y': j,
+                                           'Z': k,
+                                           'X Velocity':vx,
+                                           'Y Velocity':vy,
+                                           'Z Velocity':vz,
+                                           'Pressure': 0.,
+                                           'Density': 0.,
+                                           'Mass':mass,
+                                           'Type':type_}
+                        dict_index = dict_index + 1
+
+        return box

@@ -11,26 +11,29 @@ import time as tm
 
 # Making particles
 
-radius = 0.025 # Radius of each particle
+fluid_radius = 0.01 # Radius of each particle
+boundary_radius = 0.01
 rho_0 = 1000 # Density at rest
 mass = 1 # temporary mass of each particle
 
-#boundary = particle_maker.make_prism2([-0.2,-0.05,-0.2],[0.2,0,0.2],radius,mass,'Boundary')
-boundary = particle_maker.make_prism2([-0.2,0,-0.2],[0.2,-0.025,0.2],radius,0,'Stainless Steel',dict_index=0,prism={})
-moving = particle_maker.make_prism2([0,0.075,0],[0.025,0.075,0.025],2*radius,mass,'Water',dict_index=0,prism={})
+boundary = particle_maker.make_box([-0.1,-0.1,-0.1],[.3,.3,.3],boundary_radius,0,'Stainless Steel',dict_index=0,box={})
+
+moving = particle_maker.make_prism2([0,0,0],[0.1,.2,.1],fluid_radius,mass,'Water',dict_index=0,prism={})
 
 N = len(moving)
 
 print()
-print('Number of fluid particles = ' + str(N))
-print('Number of boundary particles = ' + str(len(boundary)))
+print("#"*40)
+print('Initializing with:')
+print(str(N) + ' fluid particles and ' + str(len(boundary)) + ' boundary particles')
 
 #Calculating Kernel Support radius
-V = N * radius**3 * 4/3 * pi
+V = N * fluid_radius**3 * 4/3 * pi
 h = (3*V*25/(4*pi*N))**(1/3)
 
 # Calculating desired mass-density of each particle:
-
+print("#"*40)
+print('Calculating desired mass-density of each particle')
 # We want the fluid in the initial conguration to exist roughly at the reference density. 
 # One way to do this is to take the volume in the indicated body of fuid, multiply by the mass density, and divide by the
 # number of particles; but that requires that we be able to compute the volume of the fluid region. 
@@ -67,6 +70,8 @@ for i in range(0,N):
     moving[i]['Mass'] = mass
 
 # Calculating the volume of each boundary particle
+print("#"*40)
+print('Calculating the volume of each boundary particle')
 for i in range(0,len(boundary)):
     ri_x = boundary[i]['X']
     ri_y = boundary[i]['Y']
@@ -84,6 +89,8 @@ for i in range(0,len(boundary)):
     boundary[i]['psi'] = rho_0/W
 
 #  -Gets initial boundary neighbors for each moving particle i
+print("#"*40)
+print('Getting initial boundary neighbors for each moving particle i')
 for i in range(0,N):
     moving[i]['Boundary Neighbors'] = []
     moving[i]['boundary_r'] = []
@@ -116,7 +123,7 @@ beta = 0 # Second artificial viscosity term
 w = 50 # steps for density correction
 correction = True # True for correction in the first iteration
 delta_friction = 1 # Friction coefficient between 2 interaction surfaces
-c_R = 0.8 # coefficient of restitution (between 0 and 1)
+c_R = 0.01 # coefficient of restitution (between 0 and 1)
 
 #Sound velocities (m/s)
 c= {'Water':1480,
@@ -124,14 +131,19 @@ c= {'Water':1480,
     'Air':330,
     'Polystyrene':2400}
 
+
 # Get path to save simulation results
 paths = utilities.get_paths("./results/")
 
+print("#"*40)
+print('Saving initial conditions')
 # Saving initial conditions
 utilities.save_csv(paths[2],iteration,moving)
 utilities.save_moving_vtk(paths[0],iteration,moving)
 utilities.save_boundary_vtk(paths[0],boundary)
 utilities.add_to_group(paths[0],iteration,time,paths[1])
+
+print("#"*40)
 
 # Stop when simulation time reaches final time
 while time < final_time:
@@ -165,18 +177,19 @@ while time < final_time:
     for i in range(0,N):
         moving[i]['Pressure Force'] = force_fields.Pressure(moving,i,h,alpha,beta,c,'Spiky')
         moving[i]['Viscosity Force'] = force_fields.Viscosity_Kernel(moving,i,h,mu,'Viscosity')
-        moving[i]['Surface Tension Force'] = force_fields.Surface_Tension(moving,i,h,delta,'Poly_6')
+        
 
     # Fourth iteration through all particles
     #  -Calculates all EXTERNAL force fields (pressure,viscosity and others) for each particle i
     for i in range(0,N):
+        moving[i]['Surface Tension Force'] = force_fields.Surface_Tension(moving,i,h,delta,'Poly_6')
         neighbors = { key: boundary[key] for key in moving[i]['Boundary Neighbors'] }
         moving[i]['Boundary-Fluid Pressure'] = 0
         moving[i]['Boundary-Fluid Friction'] = 0
         if len(neighbors) > 0:
             count = 0
             for j in neighbors:
-                moving[i]['Boundary-Fluid Pressure'] += force_fields.Boundary_Fluid_Pressure(moving[i],neighbors[j],h,count,'Spiky')
+                moving[i]['Boundary-Fluid Pressure'] += force_fields.Boundary_Fluid_Pressure(moving[i],neighbors[j],h,count,'Poly_6')
                 moving[i]['Boundary-Fluid Friction'] += force_fields.Boundary_Fluid_Friction(moving[i],neighbors[j],h,delta_friction,c,count,'Poly_6')
                 count += 1
 
@@ -199,12 +212,12 @@ while time < final_time:
         delta_t = 1e-2
     else:
         try:
-            delta_t_v = lam_v * radius*2 /max_vel
+            delta_t_v = lam_v * fluid_radius*2 /max_vel
         except:
             delta_t_v = float('inf')
         
         try:
-            delta_t_f = lam_f * sqrt(radius*2/max_force)
+            delta_t_f = lam_f * sqrt(fluid_radius*2/max_force)
         except:
             delta_t_f = 1e-2
 
@@ -240,33 +253,42 @@ while time < final_time:
                     moving[i]['boundary_r'].append([rx,ry,rz])
                     moving[i]['Boundary Neighbors'].append(j)
                 
-                if r < 2*radius:
+                if r < (fluid_radius + boundary_radius):
                     colliders.append([i,j])
 
     # Collision Response
+    try:
+        current_particle = colliders[0][0]
+    except:
+        pass
+  
     for i in range(0,len(colliders)):
-        fluid_collider = moving[colliders[i][0]]
-        boundary_collider = boundary[colliders[i][1]]
 
-        r_index = fluid_collider['Boundary Neighbors'].index(colliders[i][1])
-        string = ['X Velocity','Y Velocity','Z Velocity']
-        d = abs(sqrt(fluid_collider['boundary_r'][r_index][0]**2+fluid_collider['boundary_r'][r_index][1]**2+fluid_collider['boundary_r'][r_index][2]**2) - 2*radius)
-        new_vel = array([0.,0.,0.])
-        mag_old_vel = sqrt(fluid_collider[string[0]]**2+fluid_collider[string[1]]**2+fluid_collider[string[2]]**2)
-        direction = sign(around(fluid_collider['boundary_r'][r_index], decimals = 10))
-        normal = -1*direction
-          
-        old_vel = []
-        for v_axis in string:
-             old_vel.append(fluid_collider[v_axis])
-        
-        new_vel = old_vel - (1+c_R*d/(delta_t*mag_old_vel))*dot(old_vel,normal)*normal
+        if current_particle == colliders[i][0]:
+            fluid_collider = moving[colliders[i][0]]
+            boundary_collider = boundary[colliders[i][1]]
 
-        count = 0
-        for v_axis in string:
-            moving[colliders[i][0]][v_axis] = new_vel[count]
-            moving[colliders[i][0]][v_axis[0]] = moving[colliders[i][0]][v_axis[0]] + delta_t * new_vel[count]
-            count += 1
+            r_index = fluid_collider['Boundary Neighbors'].index(colliders[i][1])
+            string = ['X Velocity','Y Velocity','Z Velocity']
+            d = abs(sqrt(fluid_collider['boundary_r'][r_index][0]**2+fluid_collider['boundary_r'][r_index][1]**2+fluid_collider['boundary_r'][r_index][2]**2) - (fluid_radius + boundary_radius))
+            current_particle = colliders[i][0]
+            new_vel = array([0.,0.,0.])
+            mag_old_vel = sqrt(fluid_collider[string[0]]**2+fluid_collider[string[1]]**2+fluid_collider[string[2]]**2)
+            direction = sign(around(fluid_collider['boundary_r'][r_index], decimals = 10))
+            normal = -1*direction
+            
+            old_vel = []
+            for v_axis in string:
+                old_vel.append(fluid_collider[v_axis])
+            
+            new_vel = old_vel - (1+c_R*d/(delta_t*mag_old_vel))*dot(old_vel,normal)*normal
+
+            count = 0
+            for v_axis in string:
+                moving[colliders[i][0]][v_axis] = new_vel[count] * lam_v * fluid_radius*2 /max(new_vel)
+                moving[colliders[i][0]][v_axis[0]] = moving[colliders[i][0]][v_axis[0]] + lam_v * fluid_radius*2 /max(new_vel) * new_vel[count]
+                count += 1
+             
 
     time = time + delta_t    
 
