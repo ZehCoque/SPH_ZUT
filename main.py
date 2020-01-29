@@ -18,7 +18,7 @@ mass = 1 # temporary mass of each particle
 
 boundary = particle_maker.make_box([-0.1,-0.1,-0.1],[.3,.3,.3],boundary_radius,0,'Stainless Steel',dict_index=0,box={})
 
-moving = particle_maker.make_prism2([0,0,0],[0.1,.2,.1],fluid_radius,mass,'Water',dict_index=0,prism={})
+moving = particle_maker.make_prism2([0,0,0],[0.1,.2,.1],1.25*fluid_radius,mass,'Water',dict_index=0,prism={})
 
 N = len(moving)
 
@@ -29,7 +29,7 @@ print(str(N) + ' fluid particles and ' + str(len(boundary)) + ' boundary particl
 
 #Calculating Kernel Support radius
 V = N * fluid_radius**3 * 4/3 * pi
-h = (3*V*25/(4*pi*N))**(1/3)
+h = (3*V*20/(4*pi*N))**(1/3)
 
 # Calculating desired mass-density of each particle:
 print("#"*40)
@@ -112,7 +112,7 @@ mu = 3.5*1.003e-3 # Viscosity coefficient
 delta = 0.0728 # Surface tension coefficient
 g = array([0,-9.81,0])
 lam_v = 0.4 # delta_t for velocity parameter
-lam_f = 0.2 # delta_t for force parameter
+lam_f = 1 # delta_t for force parameter
 gamma = 7 # power of pressure calculation
 time = 0 # initial time
 final_time = 1 #in seconds

@@ -65,6 +65,10 @@ def make_prism2(coord_init,coord_final,radius,mass,type_,vx=0.,vy=0.,vz=0.,dict_
         return make_prism(coord_init[0],coord_init[1],coord_init[2],num_x,num_y,num_z,radius,mass,type_,vx,vy,vz,dict_index,prism)
 
 def make_box(coord_init,coord_final,radius,mass,type_,vx=0.,vy=0.,vz=0.,dict_index=0,box={}):
+    ''' returns an empty box given the initial and final coordinates \n
+    coord_init -> array(x,y,z) of the initial coordinates \n
+    coord_final -> array(x,y,z) of the final coordinates across main diagonal \n
+    See make_prism function for the other variables'''
 
     distance = array(coord_final) - array(coord_init)
 
