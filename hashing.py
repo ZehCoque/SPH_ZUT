@@ -49,7 +49,7 @@ class Hashing:
     def __init__(self,cell_size,N,d={}):
         self.d = d
         self.cell_size = cell_size
-        self.table_size = nextPrime(2*N)
+        self.table_size = 83492803
         self.p1 = 73856093
         self.p2 = 19349663
         self.p3 = 83492791
@@ -70,31 +70,44 @@ class Hashing:
     def _add(self,point,obj):
         r_c = self.r_c(point)
         hh = self._hash(r_c)
-        self.d.setdefault(hh,set()).add(obj)
-
-        return self.d
+        if hh not in self.d.keys():
+            self.d[hh] = list()
+        if obj not in self.d[hh]:
+            self.d[hh].append(obj)
+            for i in self.d:
+                if obj in self.d[i] and i!=hh:
+                    for j in self.d[i]:
+                        if j == obj:
+                            ind = self.d[i].index(j)
+                            del self.d[i][ind]
+                            return
+            #self._del(point,obj)
+            
+    def _del(self,point,obj):
+        i = self.d.get(self._hash(point))
+        for j in i:
+            if j == obj:
+                del i[j]
 
     def possible_neighbors(self,point):
         point = array(point)
-        L = {}
+        L = []
         min_point = point - self.cell_size
         max_point = point + self.cell_size
 
         BBmin = self.r_c(min_point)
         BBmax = self.r_c(max_point)
-        point = self.r_c(point)
-        
         x_count = BBmin[0]
         while x_count <= BBmax[0]:
             y_count = BBmin[1]
             while y_count <= BBmax[1]:
                 z_count = BBmin[2]
                 while z_count <= BBmax[2]:
-                    new_point = [x_count,y_count,z_count]
-                    if new_point != point:
-                        i = self.d.get(self._hash(new_point))
-                        if i != None:
-                            L[self._hash(new_point)] = i
+                    new_point = array([x_count,y_count,z_count])
+                    i = self.d.get(self._hash(new_point))
+                    if i != None:
+                        for j in i:
+                            L.append(j)
                     z_count += 1
                 y_count += 1
             x_count += 1

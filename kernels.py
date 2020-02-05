@@ -108,12 +108,13 @@ class Spiky: #Recommended for pressure
             return 0
         
     def Gradient(self):
-               
+  
         return -45/(pi*self.h**6)*self.r/abs(self.r)*power(self.h-abs(self.r),2)
     
     def Laplacian(self):
-        
+
         return -90/(pi*self.h**6*abs(self.r))*(self.h-abs(self.r))*(self.h-2*abs(self.r))
+
 
 class Viscosity:
     def __init__(self,r=1,h=2,step=1/1e6):
@@ -136,29 +137,28 @@ class Viscosity:
         
         return 45/(pi*self.h**6)*(self.h-abs(self.r))
     
-def Kernel_Correction(neighbors,kernel_name,h):
+def Kernel_Correction(neighbors,ri,h,kernel_name):
+    kernel_name = globals()['%s' % kernel_name]
     A = array([[0,0,0,0],
             [0,0,0,0],
             [0,0,0,0],
             [0,0,0,0]])
 
     for i in neighbors:
-        for r_vector in neighbors[i]['moving_r']:
-            r = sqrt(r_vector[0]**2+r_vector[1]**2+r_vector[2]**2)
-            W = kernel_name(r,h).Kernel()
+        r_vector = ri - array([neighbors[i]['X'],neighbors[i]['Y'],neighbors[i]['Z']])
+        r = sqrt(r_vector[0]**2+r_vector[1]**2+r_vector[2]**2)
+        W = kernel_name(r,h).Kernel()
 
-            if len(r_vector) == 3:
+        rx = r_vector[0]
+        ry = r_vector[1]
+        rz = r_vector[2]
+        Aij = array([[1,rx,ry,rz],
+                     [rx,rx*rx,rx*ry,rx*rz],
+                     [ry,ry*rx,ry*ry,ry*rz],
+                     [rz,rz*rx,rz*ry,rz*rz]])
+        Aij = Aij * W
 
-                rx = r_vector[0]
-                ry = r_vector[1]
-                rz = r_vector[2]
-                Aij = array([[1,rx,ry,rz],
-                            [rx,rx*rx,rx*ry,rx*rz],
-                            [ry,ry*rx,ry*ry,ry*rz],
-                            [rz,rz*rx,rz*ry,rz*rz]])
-                Aij = Aij * W
-
-                A = [[A[j][k] + Aij[j][k]  for k in range(len(A[0]))] for j in range(len(A))]
+        A = [[A[j][k] + Aij[j][k]  for k in range(len(A[0]))] for j in range(len(A))]
 
     beta = linalg.pinv(A)*[[1],[0],[0],[0]]
     return beta[0]

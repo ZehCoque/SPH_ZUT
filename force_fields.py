@@ -1,119 +1,66 @@
 from kernels import *
 from numpy import array, sqrt, dot, sign, around
+import hashing
 
 # Smoothed density
-def Density(dict_moving,i,h,correction,rho_0,kernel_name,dict_boundary={}):
+def Density(current,neighbor,r,h,t,r_vector=[],beta=[],correction=False,kernel_name='Poly_6'):
     # Initialization
-    density = 0
     kernel_name = globals()['%s' % kernel_name]
-    try:
-        neighbors = { key: dict_moving[key] for key in dict_moving[i]['Fluid Neighbors'] }
-    except:
-        dict_moving.pop(i)
-        neighbors = dict_moving
 
-    count = 0 
-    if correction:
-        beta = Kernel_Correction(neighbors,kernel_name,h)
+    if correction == True:
+        W = (beta[0]+beta[1]*r_vector[0]+beta[2]*r_vector[1]+beta[3]*r_vector[2])*kernel_name(r,h).Kernel()
     else:
-        beta = []
+        W = kernel_name(r,h).Kernel()
 
-    # Fluid Neighbors
-    for j in neighbors:
-        r_vector = array(dict_moving[i]['moving_r'][count])
-        r = sqrt(r_vector[0]**2+r_vector[1]**2+r_vector[2]**2)
-        if correction:
-            W = (beta[0]+beta[1]*r_vector[0]+beta[2]*r_vector[1]+beta[3]*r_vector[2])*kernel_name(r,h).Kernel()
-        else:
-            W = kernel_name(r,h).Kernel()
-
-        density += neighbors[j]['Mass']*W
-        count += 1
-
-    count = 0 
-    #Boundary Neighbors
-    if dict_boundary != {}:
-        neighbors = { key: dict_boundary[key] for key in dict_moving[i]['Boundary Neighbors'] }
-        for j in neighbors:
-            r_vector = array(dict_moving[i]['boundary_r'][count])
-            r = sqrt(r_vector[0]**2+r_vector[1]**2+r_vector[2]**2)
-            if correction:
-                W = (beta[0]+beta[1]*r_vector[0]+beta[2]*r_vector[1]+beta[3]*r_vector[2])*kernel_name(r,h).Kernel()
-            else:
-                W = kernel_name(r,h).Kernel()
-            
-            density += dict_boundary[j]['psi'] * W
-            count += 1
-
-    return density + dict_moving[i]['Mass']*kernel_name(0,h).Kernel()
+    if t == 1: # Fluid - Fluid Interactions
+        return neighbor['Mass']*W
+    elif t == 0: # Fluid - Boundary Interactions
+        return neighbor['psi']*W
+    else:
+        return "error"
 
 # Smoothed pressure force
-def Pressure(dict_moving,i,h,alpha,beta,c,kernel_name):
+def Pressure(current,neighbor,r,h,t,r_vector,correction,kernel_name,alpha,beta,c):
     # Initialization
     #R = 0.006 # Tensile instability term
     kernel_name = globals()['%s' % kernel_name]
     pressure = array([0.,0.,0.])
-    direction = array([1.,1.,1.])
-    count = 0
+    direction = sign(around(r_vector, decimals = 10))
 
-    neighbors = { key: dict_moving[key] for key in dict_moving[i]['Fluid Neighbors'] }
-    for j in dict_moving[i]['Fluid Neighbors']:
-        r_vector = array(dict_moving[i]['moving_r'][count])
-        r = sqrt(r_vector[0]**2+r_vector[1]**2+r_vector[2]**2)
-        Grad_W = kernel_name(r,h).Gradient()
-        direction = sign(around(r_vector, decimals = 10))
-        PI = Artificial_Viscosity(dict_moving[i],neighbors[j],alpha,beta,h,c,r_vector)
-        pressure = pressure - direction * neighbors[j]['Mass']* \
-        ((PI + dict_moving[i]['Pressure']/dict_moving[i]['Density']**2)+(neighbors[j]['Pressure']/neighbors[j]['Density']**2))*Grad_W
-        count += 1
+    Grad_W = kernel_name(r,h).Gradient()
+    PI = Artificial_Viscosity(current,neighbor,alpha,beta,h,c,r_vector)
+    pressure = -direction * neighbor['Mass']* \
+    ((PI + current['Pressure']/current['Density']**2)+(neighbor['Pressure']/neighbor['Density']**2))*Grad_W
 
-    return dict_moving[i]['Density']*pressure
+    return array(pressure)
 
 # Smoothed Viscosity
 
-def Viscosity_Kernel(dict_moving,i,h,mu,kernel_name):
+def Viscosity_Kernel(current,neighbor,r,h,t,correction,kernel_name,mu):
     #Initialization
     kernel_name = globals()['%s' % kernel_name]
     viscosity = array([0.,0.,0.])
 
-    # Fluid Neighbors
-    neighbors = { key: dict_moving[key] for key in dict_moving[i]['Fluid Neighbors'] }
-    count = 0
-    for j in dict_moving[i]['Fluid Neighbors']:
-        r_vector = array(dict_moving[i]['moving_r'][count])
-        r = sqrt(r_vector[0]**2+r_vector[1]**2+r_vector[2]**2)
-        Laplacian_W = kernel_name(r,h).Laplacian()
+    Laplacian_W = kernel_name(r,h).Laplacian()
+    dv = array([neighbor['X Velocity']-current['X Velocity'],neighbor['Y Velocity']-current['Y Velocity'],neighbor['Z Velocity']-current['Z Velocity']])
 
-        dv = array([neighbors[j]['X Velocity']-dict_moving[i]['X Velocity'],neighbors[j]['Y Velocity']-dict_moving[i]['Y Velocity'],neighbors[j]['Z Velocity']-dict_moving[i]['Z Velocity']])
-
-        viscosity = viscosity + neighbors[j]['Mass']*dv/neighbors[j]['Density']*Laplacian_W
+    viscosity = neighbor['Mass']*dv/neighbor['Density']*Laplacian_W
         
-    return mu*viscosity
+    return array(mu*viscosity)
 
 # Smoothed Surface Tension Force
-def Surface_Tension(dict_moving,i,h,delta,kernel_name):
+def Surface_Tension(current,neighbor,r,h,t,r_vector,correction,kernel_name,delta):
     # Initialization
     kernel_name = globals()['%s' % kernel_name]
-    surface = array([0.,0.,0.])
-    direction = array([0.,0.,0.])
-    count = 0
+    direction = sign(around(r_vector, decimals = 10))
 
-    neighbors = { key: dict_moving[key] for key in dict_moving[i]['Fluid Neighbors'] }
-    for j in dict_moving[i]['Fluid Neighbors']:
-        r_vector = array(dict_moving[i]['moving_r'][count])
-        r = sqrt(r_vector[0]**2+r_vector[1]**2+r_vector[2]**2)
-        Grad_W = kernel_name(r,h).Gradient()
-        Laplacian_W = kernel_name(r,h).Laplacian()
+    Grad_W = kernel_name(r,h).Gradient()
+    Laplacian_W = kernel_name(r,h).Laplacian()
 
-        n = neighbors[j]['Mass']/neighbors[j]['Density'] * Grad_W
-        Laplacian_c = neighbors[j]['Mass']/neighbors[j]['Density'] * Laplacian_W
-
-        direction = sign(around(r_vector, decimals = 10))
-        
-        surface = surface - direction * delta * Laplacian_c * n/abs(n)
-        count += 1
-
-    return surface
+    n = neighbor['Mass']/neighbor['Density'] * Grad_W
+    Laplacian_c = neighbor['Mass']/neighbor['Density'] * Laplacian_W
+    
+    return array(direction * delta * Laplacian_c * n/abs(n))
 
 def Artificial_Viscosity(current,neighbor,alpha,beta,h,c,r_vector):
     v_ab = array([-neighbor['X Velocity']+current['X Velocity'],-neighbor['Y Velocity']+current['Y Velocity'],-neighbor['Z Velocity']+current['Z Velocity']])
@@ -131,40 +78,33 @@ def Artificial_Viscosity(current,neighbor,alpha,beta,h,c,r_vector):
         return 0
 
 # Boundary-Fluid Pressure Force
-def Boundary_Fluid_Pressure(dict_moving,dict_boundary,h,count,kernel_name):
+def Boundary_Fluid_Pressure(current,neighbor,r,h,r_vector,correction,kernel_name):
     kernel_name = globals()['%s' % kernel_name]
-    direction = array([0.,0.,0.])
-    r_vector = array(dict_moving['boundary_r'][count])
-    r = sqrt(r_vector[0]**2+r_vector[1]**2+r_vector[2]**2)
+    direction = sign(around(r_vector, decimals = 10))
     Grad_W = kernel_name(r,h).Gradient()
     direction = sign(around(r_vector, decimals = 10))
 
-    return direction * Grad_W * -dict_moving['Mass']*dict_boundary['psi']*dict_moving['Pressure']/dict_moving['Density']**2
+    return array(direction * Grad_W * -current['Mass']*neighbor['psi']*current['Pressure']/current['Density']**2)
 
 # Boundary-Fluid Friction Force
-def Boundary_Fluid_Friction(dict_moving,dict_boundary,h,delta,c,count,kernel_name):
+def Boundary_Fluid_Friction(current,neighbor,r,h,r_vector,correction,kernel_name,delta,c):
     kernel_name = globals()['%s' % kernel_name]
 
-    v_ab = array([-dict_boundary['X Velocity']+dict_moving['X Velocity'],-dict_boundary['Y Velocity']+dict_moving['Y Velocity'],-dict_boundary['Z Velocity']+dict_moving['Z Velocity']])
-    r_vector = array(dict_moving['boundary_r'][count])
+    v_ab = array([-neighbor['X Velocity']+current['X Velocity'],-neighbor['Y Velocity']+current['Y Velocity'],-neighbor['Z Velocity']+current['Z Velocity']])
+
     if dot(v_ab,r_vector) < 0:
-        direction = array([0.,0.,0.])
-        r = sqrt(r_vector[0]**2+r_vector[1]**2+r_vector[2]**2)
+
         Grad_W = kernel_name(r,h).Gradient()
-        for dir_num in range(0,len(direction)):
-            if round(r_vector[dir_num],10) == 0:
-                direction[dir_num] = 0
-            else: 
-                direction[dir_num] = round(r_vector[dir_num],10)/abs(round(r_vector[dir_num],10))
+        direction = sign(around(r_vector, decimals = 10))
 
-        c_ab = (c[dict_moving['Type']]+c[dict_boundary['Type']])/2
+        c_ab = (c[current['Type']]+c[neighbor['Type']])/2
 
-        mu_ab = delta*h*c_ab/(2*dict_moving['Density'])
+        mu_ab = delta*h*c_ab/(2*current['Density'])
 
         PI = -mu_ab*dot(v_ab,r_vector)/(dot(r_vector,r_vector)+0.01*h**2)
 
-        return -dict_moving['Mass']*dict_boundary['psi']*PI*Grad_W*direction
+        return array(-current['Mass']*neighbor['psi']*PI*Grad_W*direction)
     else:
 
-        return 0
+        return array([0.,0.,0.])
 

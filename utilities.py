@@ -33,7 +33,7 @@ def get_paths(main_folder):
 def save_csv(path,iteration,dictionary):
     filename = path + '/iter_' + str(iteration) + '.csv' #csv filename
     try:
-        headers = dictionary[0].keys()
+        headers = dictionary[next(iter(dictionary.keys()))].keys()
     except:
         headers = dictionary.keys()
     try:
@@ -76,9 +76,9 @@ def add_to_group(path,iteration,time,group):
 def save_group(group):
     group.save()
 
-def info(current_time, final_time, start_time, now,delta_t, message='Simulating...'):
+def info(current_time, final_time, start_time, now,delta_t,iteration, message='Simulating...'):
         print(
-            "\r{} |{}{}| {}% -/-/- Current simulation time: {} s -/-/- Time step: {} s -/-/- Elapsed time: {} s"
+            "\r{} |{}{}| {}% -/-/- Current simulation time: {} s -/-/- Time step: {} s -/-/- Elapsed time: {} s -/-/- Number of iterations: {}"
             .format(
                 message,
                 "#" * int(25 * current_time / final_time),
@@ -87,7 +87,8 @@ def info(current_time, final_time, start_time, now,delta_t, message='Simulating.
                 round(current_time,6),
                 round(delta_t,6),
                 round(abs(start_time - now)),
+                iteration
             ),
             flush=True,
-            end=""
+            end="   "
         )
