@@ -20,7 +20,7 @@ def Density(current,neighbor,r,h,t,r_vector=[],beta=[],correction=False,kernel_n
         return "error"
 
 # Smoothed pressure force
-def Pressure(current,neighbor,r,h,t,r_vector,correction,kernel_name,alpha,beta,c):
+def Pressure(current,neighbor,r,h,t,r_vector,kernel_name,alpha=0,beta=0,c=0):
     # Initialization
     #R = 0.006 # Tensile instability term
     kernel_name = globals()['%s' % kernel_name]
@@ -28,15 +28,15 @@ def Pressure(current,neighbor,r,h,t,r_vector,correction,kernel_name,alpha,beta,c
     direction = sign(around(r_vector, decimals = 10))
 
     Grad_W = kernel_name(r,h).Gradient()
-    PI = Artificial_Viscosity(current,neighbor,alpha,beta,h,c,r_vector)
-    pressure = -direction * neighbor['Mass']* \
-    ((PI + current['Pressure']/current['Density']**2)+(neighbor['Pressure']/neighbor['Density']**2))*Grad_W
+    # PI = Artificial_Viscosity(current,neighbor,alpha,beta,h,c,r_vector)
+    pressure = -direction *  neighbor['Mass']* \
+    ((current['Pressure']/current['Density']**2)+(neighbor['Pressure']/neighbor['Density']**2))*Grad_W
 
     return array(pressure)
 
 # Smoothed Viscosity
 
-def Viscosity_Kernel(current,neighbor,r,h,t,correction,kernel_name,mu):
+def Viscosity_Kernel(current,neighbor,r,h,t,kernel_name,mu):
     #Initialization
     kernel_name = globals()['%s' % kernel_name]
     viscosity = array([0.,0.,0.])
@@ -49,18 +49,24 @@ def Viscosity_Kernel(current,neighbor,r,h,t,correction,kernel_name,mu):
     return array(mu*viscosity)
 
 # Smoothed Surface Tension Force
-def Surface_Tension(current,neighbor,r,h,t,r_vector,correction,kernel_name,delta):
+def Surface_Tension(current,neighbor,r,h,t,r_vector,kernel_name,delta):
     # Initialization
+    threshold =  7.065
     kernel_name = globals()['%s' % kernel_name]
     direction = sign(around(r_vector, decimals = 10))
 
     Grad_W = kernel_name(r,h).Gradient()
-    Laplacian_W = kernel_name(r,h).Laplacian()
+    n = neighbor['Mass']/neighbor['Density'] * Grad_W * direction
 
-    n = neighbor['Mass']/neighbor['Density'] * Grad_W
-    Laplacian_c = neighbor['Mass']/neighbor['Density'] * Laplacian_W
+    if sqrt(n[0]**2+n[1]**2+n[2]**2) >= threshold:
     
-    return array(direction * delta * Laplacian_c * n/abs(n))
+        Laplacian_W = kernel_name(r,h).Laplacian()
+        Laplacian_c = neighbor['Mass']/neighbor['Density'] * Laplacian_W
+        
+        return array(delta * Laplacian_c * n/(sqrt(n[0]**2+n[1]**2+n[2]**2)))
+    
+    else:
+        return 0
 
 def Artificial_Viscosity(current,neighbor,alpha,beta,h,c,r_vector):
     v_ab = array([-neighbor['X Velocity']+current['X Velocity'],-neighbor['Y Velocity']+current['Y Velocity'],-neighbor['Z Velocity']+current['Z Velocity']])
@@ -78,7 +84,7 @@ def Artificial_Viscosity(current,neighbor,alpha,beta,h,c,r_vector):
         return 0
 
 # Boundary-Fluid Pressure Force
-def Boundary_Fluid_Pressure(current,neighbor,r,h,r_vector,correction,kernel_name):
+def Boundary_Fluid_Pressure(current,neighbor,r,h,r_vector,kernel_name):
     kernel_name = globals()['%s' % kernel_name]
     direction = sign(around(r_vector, decimals = 10))
     Grad_W = kernel_name(r,h).Gradient()
@@ -87,7 +93,7 @@ def Boundary_Fluid_Pressure(current,neighbor,r,h,r_vector,correction,kernel_name
     return array(direction * Grad_W * -current['Mass']*neighbor['psi']*current['Pressure']/current['Density']**2)
 
 # Boundary-Fluid Friction Force
-def Boundary_Fluid_Friction(current,neighbor,r,h,r_vector,correction,kernel_name,delta,c):
+def Boundary_Fluid_Friction(current,neighbor,r,h,r_vector,kernel_name,delta,c):
     kernel_name = globals()['%s' % kernel_name]
 
     v_ab = array([-neighbor['X Velocity']+current['X Velocity'],-neighbor['Y Velocity']+current['Y Velocity'],-neighbor['Z Velocity']+current['Z Velocity']])
@@ -101,7 +107,7 @@ def Boundary_Fluid_Friction(current,neighbor,r,h,r_vector,correction,kernel_name
 
         mu_ab = delta*h*c_ab/(2*current['Density'])
 
-        PI = -mu_ab*dot(v_ab,r_vector)/(dot(r_vector,r_vector)+0.01*h**2)
+        PI = -mu_ab*dot(v_ab,r_vector)/(abs(r_vector)**2+0.01*h**2)
 
         return array(-current['Mass']*neighbor['psi']*PI*Grad_W*direction)
     else:

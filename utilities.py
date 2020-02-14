@@ -4,6 +4,7 @@ from os import listdir
 from numpy import sqrt, asarray
 import csv
 import time
+import pandas
 
 def get_paths(main_folder):
     '''Make directories and return the paths for the vtk, group and csv folders'''
@@ -78,11 +79,11 @@ def save_group(group):
 
 def info(current_time, final_time, start_time, now,delta_t,iteration, message='Simulating...'):
         print(
-            "\r{} |{}{}| {}% -/-/- Current simulation time: {} s -/-/- Time step: {} s -/-/- Elapsed time: {} s -/-/- Number of iterations: {}"
+            "\r{} |{}{}| {}% -/-/- Current simulation time: {}s -/-/- Time step: {}s -/-/- Elapsed time: {}s -/-/- Iteration: {}"
             .format(
                 message,
-                "#" * int(25 * current_time / final_time),
-                " " * (25 - int(25 * current_time / final_time)),
+                "#" * int(20 * current_time / final_time),
+                " " * (20 - int(20 * current_time / final_time)),
                 int(100 * current_time / final_time),
                 round(current_time,6),
                 round(delta_t,6),
@@ -90,5 +91,35 @@ def info(current_time, final_time, start_time, now,delta_t,iteration, message='S
                 iteration
             ),
             flush=True,
-            end="   "
+            end="  "
         )
+
+def csv_to_dict(path):
+    df = pandas.read_csv(path)
+    mydict = { } 
+    for i in range(0,df.shape[0]):
+        mydict[i] = { }
+    for key in df:
+        array = df[key].values
+        for j in range(0,len(array)):
+            mydict[j].update({key: array[j]})
+
+    return mydict
+
+def continue_last_sim():
+    folders = listdir("./results")
+    max_num1 = 0
+    for i in folders:
+        num = [int(s) for s in i.split() if s.isdigit()][0]
+        if num > max_num1:
+            max_num1 = num
+    
+    sim_folder = "./results/simulation " + str(max_num1) + "/csv/"
+    files = listdir(sim_folder)
+    max_num2 = 0
+    for i in files:
+        num = int(i.split("_")[1].replace(".csv",""))
+        if num > max_num2:
+            max_num2 = num
+
+    return [csv_to_dict(sim_folder + "iter_" + str(max_num2 - 1) + ".csv"), max_num2-1, "./results/simulation " + str(max_num1), VtkGroup("./results/simulation " + str(max_num1) + "/moving_particles")]

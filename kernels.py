@@ -88,11 +88,17 @@ class Poly_6:
 
     def Gradient(self):
         
-        return -945/(32*pi*self.h**9)*self.r*power(self.h**2-abs(self.r)**2,2)
+        if abs(self.r) >= 0 and abs(self.r) <= self.h:
+            return -945/(32*pi*self.h**9)*self.r*power(self.h**2-abs(self.r)**2,2)
+        else:
+            return 0
     
     def Laplacian(self):
-            
-        return -945/(32*pi*self.h**9)*(self.h**2-abs(self.r)**2)*(3*self.h**2-7*abs(self.r)**2)
+        
+        if abs(self.r) >= 0 and abs(self.r) <= self.h:
+            return -945/(32*pi*self.h**9)*(self.h**2-abs(self.r)**2)*(3*self.h**2-7*abs(self.r)**2)
+        else:
+            return 0
 
 class Spiky: #Recommended for pressure
     def __init__(self,r=1,h=2,step=1/1e6):
@@ -108,13 +114,18 @@ class Spiky: #Recommended for pressure
             return 0
         
     def Gradient(self):
-  
-        return -45/(pi*self.h**6)*self.r/abs(self.r)*power(self.h-abs(self.r),2)
-    
+        
+        if abs(self.r) >= 0 and abs(self.r) <= self.h:
+            return -45/(pi*self.h**6)*self.r/abs(self.r)*power(self.h-abs(self.r),2)
+        else:
+            return 0
+
     def Laplacian(self):
 
-        return -90/(pi*self.h**6*abs(self.r))*(self.h-abs(self.r))*(self.h-2*abs(self.r))
-
+        if abs(self.r) >= 0 and abs(self.r) <= self.h:
+            return -90/(pi*self.h**6*abs(self.r))*(self.h-abs(self.r))*(self.h-2*abs(self.r))
+        else:
+            return 0
 
 class Viscosity:
     def __init__(self,r=1,h=2,step=1/1e6):
@@ -130,12 +141,16 @@ class Viscosity:
             return 0
     
     def Gradient(self):
-               
-        return 15/(2*pi*self.h**3)*self.r*(-3*abs(self.r)/(2*self.h**3)+2/self.h**2-self.h/(2*abs(self.r)**3))
-    
+        if abs(self.r) >= 0 and abs(self.r) <= self.h:      
+            return 15/(2*pi*self.h**3)*self.r*(-3*abs(self.r)/(2*self.h**3)+2/self.h**2-self.h/(2*abs(self.r)**3))
+        else:
+            return 0
+
     def Laplacian(self):
-        
-        return 45/(pi*self.h**6)*(self.h-abs(self.r))
+        if abs(self.r) >= 0 and abs(self.r) <= self.h:
+            return 45/(pi*self.h**6)*(self.h-abs(self.r))
+        else:
+            return 0
     
 def Kernel_Correction(neighbors,ri,h,kernel_name):
     kernel_name = globals()['%s' % kernel_name]
@@ -156,7 +171,8 @@ def Kernel_Correction(neighbors,ri,h,kernel_name):
                      [rx,rx*rx,rx*ry,rx*rz],
                      [ry,ry*rx,ry*ry,ry*rz],
                      [rz,rz*rx,rz*ry,rz*rz]])
-        Aij = Aij * W
+
+        Aij = Aij * W * neighbors[i]['Mass']/neighbors[i]['Density']
 
         A = [[A[j][k] + Aij[j][k]  for k in range(len(A[0]))] for j in range(len(A))]
 

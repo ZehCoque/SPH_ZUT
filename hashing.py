@@ -49,9 +49,9 @@ class Hashing:
     def __init__(self,cell_size,N,d={}):
         self.d = d
         self.cell_size = cell_size
-        self.table_size = 83492803
+        self.table_size = N
         self.p1 = 73856093
-        self.p2 = 19349663
+        self.p2 = 19349669
         self.p3 = 83492791
     
     def r_c(self,point):
@@ -113,9 +113,6 @@ class Hashing:
             x_count += 1
         
         return L
-
-  
-
 
 # h = 10
 # N = 1000
