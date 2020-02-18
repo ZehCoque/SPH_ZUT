@@ -1,7 +1,7 @@
 import math 
-from numpy import array
+from numpy import array,seterr
 import time
-
+seterr(all='raise')
 # Function that returns True if n  
 # is prime else returns False  
 def isPrime(n): 
@@ -103,7 +103,7 @@ class Hashing:
             while y_count <= BBmax[1]:
                 z_count = BBmin[2]
                 while z_count <= BBmax[2]:
-                    new_point = array([x_count,y_count,z_count])
+                    new_point = [x_count,y_count,z_count]
                     i = self.d.get(self._hash(new_point))
                     if i != None:
                         for j in i:

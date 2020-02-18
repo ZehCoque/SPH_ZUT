@@ -29,7 +29,7 @@ def Pressure(current,neighbor,r,h,t,r_vector,kernel_name,alpha=0,beta=0,c=0):
 
     Grad_W = kernel_name(r,h).Gradient()
     # PI = Artificial_Viscosity(current,neighbor,alpha,beta,h,c,r_vector)
-    pressure = -direction *  neighbor['Mass']* \
+    pressure = direction *  -neighbor['Mass']**2* \
     ((current['Pressure']/current['Density']**2)+(neighbor['Pressure']/neighbor['Density']**2))*Grad_W
 
     return array(pressure)
