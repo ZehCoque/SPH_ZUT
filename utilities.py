@@ -60,11 +60,7 @@ def save_moving_vtk(path,iteration,dictionary):
     pointsToVTK(filename, asarray([dictionary[d].get('X') for d in dictionary]), asarray([dictionary[d].get('Y') for d in dictionary]), asarray([dictionary[d].get('Z') for d in dictionary]), 
     data = {"Vx" : asarray([dictionary[d].get('X Velocity') for d in dictionary]), "Vy" : asarray([dictionary[d].get('Z Velocity') for d in dictionary]), "Vz" : asarray([dictionary[d].get('Z Velocity') for d in dictionary]),
     "rho" : asarray([dictionary[d].get('Density') for d in dictionary]),"p" : asarray([dictionary[d].get('Pressure') for d in dictionary])})
-    # except:
-    #     pointsToVTK(filename, asarray([dictionary.get('X') for d in dictionary]), asarray([dictionary.get('Y') for d in dictionary]), asarray([dictionary.get('Z') for d in dictionary]), 
-        # data = {"Vx" : asarray([dictionary.get('X Velocity') for d in dictionary]), "Vy" : asarray([dictionary.get('Z Velocity') for d in dictionary]), "Vz" : asarray([dictionary.get('Z Velocity') for d in dictionary]),
-        # "rho" : asarray([dictionary.get('Density') for d in dictionary]),"p" : asarray([dictionary.get('Pressure') for d in dictionary])})
-
+    
 def save_boundary_vtk(path,dictionary):
     filename = path.replace('/vtk','')  + '/boundary' #vtk filename
     pointsToVTK(filename, asarray([dictionary[d].get('X') for d in dictionary]), asarray([dictionary[d].get('Y') for d in dictionary]), asarray([dictionary[d].get('Z') for d in dictionary]),

@@ -86,10 +86,10 @@ class Poly_6:
         else:
             return 0
 
-    def Gradient(self):
+    def Gradient(self,r_vector):
         
         if abs(self.r) >= 0 and abs(self.r) <= self.h:
-            return -945/(32*pi*self.h**9)*self.r*power(self.h**2-abs(self.r)**2,2)
+            return -945/(32*pi*self.h**9)*r_vector*power(self.h**2-abs(self.r)**2,2)
         else:
             return 0
     
@@ -113,12 +113,12 @@ class Spiky: #Recommended for pressure
         else:
             return 0
         
-    def Gradient(self):
+    def Gradient(self,r_vector):
         
         if abs(self.r) >= 0 and abs(self.r) <= self.h:
-            return -45/(pi*self.h**6)*self.r/abs(self.r)*power(self.h-abs(self.r),2)
+            return -45/(pi*self.h**6)*r_vector/self.r*power(self.h-abs(self.r),2)
         else:
-            return 0
+            return array([0.,0.,0.])
 
     def Laplacian(self):
 
@@ -127,7 +127,7 @@ class Spiky: #Recommended for pressure
         else:
             return 0
 
-class Viscosity:
+class Viscosity_Kernel:
     def __init__(self,r=1,h=2,step=1/1e6):
         self.r = r
         self.h = h
@@ -140,9 +140,9 @@ class Viscosity:
         else:
             return 0
     
-    def Gradient(self):
+    def Gradient(self,r_vector):
         if abs(self.r) >= 0 and abs(self.r) <= self.h:      
-            return 15/(2*pi*self.h**3)*self.r*(-3*abs(self.r)/(2*self.h**3)+2/self.h**2-self.h/(2*abs(self.r)**3))
+            return 15/(2*pi*self.h**3)*r_vector*(-3*abs(self.r)/(2*self.h**3)+2/self.h**2-self.h/(2*abs(self.r)**3))
         else:
             return 0
 
