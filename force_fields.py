@@ -3,7 +3,7 @@ from numpy import array, sqrt, dot, sign, around
 import hashing
 
 # Smoothed density
-def Density(current,neighbor,r,h,t,r_vector=[],beta=[],correction=False,kernel_name='Poly_6'):
+def Density(current,neighbor,r,h,r_vector=[],beta=[],correction=False,kernel_name='Poly_6'):
     # Initialization
     kernel_name = globals()['%s' % kernel_name]
 
@@ -12,60 +12,62 @@ def Density(current,neighbor,r,h,t,r_vector=[],beta=[],correction=False,kernel_n
     else:
         W = kernel_name(r,h).Kernel()
 
-    if t == 1: # Fluid - Fluid Interactions
         return neighbor['Mass']*W
-    elif t == 0: # Fluid - Boundary Interactions
-        return neighbor['psi']*W
-    else:
-        return "error"
 
 # Smoothed pressure force
 def Pressure(current,neighbor,r,h,t,r_vector,kernel_name,alpha=0,beta=0,c=0):
     # Initialization
     #R = 0.006 # Tensile instability term
     kernel_name = globals()['%s' % kernel_name]
-    pressure = array([0.,0.,0.])
 
     Grad_W = kernel_name(r,h).Gradient(r_vector)
     # PI = Artificial_Viscosity(current,neighbor,alpha,beta,h,c,r_vector)
-    pressure = -neighbor['Mass']**2* \
-    ((current['Pressure']/current['Density']**2)+(neighbor['Pressure']/neighbor['Density']**2))*Grad_W
+    # return -neighbor['Mass']*current['Density']* \
+    # ((current['Pressure']/current['Density']**2)+(neighbor['Pressure']/neighbor['Density']**2))*Grad_W
+    # return array(-current['Mass']/current['Density']*(current['Pressure']+neighbor['Pressure'])/2*Grad_W)
 
-    return array(pressure)
+    return array(-current['Mass']/current['Density']*neighbor['Mass']/neighbor['Density']*(current['Pressure']+neighbor['Pressure'])/2*Grad_W) # Force -> must be divided by mass
+    # return array(-current['Mass']*neighbor['Mass']*(current['Pressure']/current['Density']**2+neighbor['Pressure']/neighbor['Density']**2)*Grad_W)
 
 # Smoothed Viscosity
 
 def Viscosity(current,neighbor,r,h,t,kernel_name,mu):
     #Initialization
     kernel_name = globals()['%s' % kernel_name]
-    viscosity = array([0.,0.,0.])
 
     Laplacian_W = kernel_name(r,h).Laplacian()
     dv = array([neighbor['X Velocity']-current['X Velocity'],neighbor['Y Velocity']-current['Y Velocity'],neighbor['Z Velocity']-current['Z Velocity']])
 
-    viscosity = current['Mass']/current['Density']*neighbor['Mass']/neighbor['Density']*dv*Laplacian_W
+    # return array(mu*dv*neighbor['Mass']/neighbor['Density']*Laplacian_W)
+
+    return array(current['Mass']/current['Density']*mu*neighbor['Mass']/neighbor['Density']*dv*Laplacian_W) # Force -> must be divided by mass
         
-    return array(mu*viscosity)
 
 # Smoothed Surface Tension Force
-def Surface_Tension(current,neighbor,r,h,t,r_vector,kernel_name,delta):
+def Surface_Tension(current,neighbor,r,h,r_vector,kernel_name,delta,rho_0):
     # Initialization
-    threshold =  7.065
     kernel_name = globals()['%s' % kernel_name]
-
-    Grad_W = kernel_name(r,h).Gradient(r_vector)
-    n = neighbor['Mass']/neighbor['Density'] * Grad_W
-
-    if sqrt(n[0]**2+n[1]**2+n[2]**2) >= threshold:
+    W = kernel_name(r,h).Kernel()
     
-        Laplacian_W = kernel_name(r,h).Laplacian()
-        Laplacian_c = neighbor['Mass']/neighbor['Density'] * Laplacian_W
-        
-        return array(delta * Laplacian_c * n/(sqrt(n[0]**2+n[1]**2+n[2]**2)))
-    
-    else:
-        return 0
+    # Cohesion force
+    cohesion = -delta*current['Mass']*neighbor['Mass']*W*r_vector/r
 
+    # Surface area minimization
+    curvature = -delta*current['Mass']*(current['Normal']-neighbor['Normal'])
+
+    # correction factor
+    K = 2*rho_0/(current['Density']+neighbor['Density'])
+
+    # Surface tension force
+    return K*(cohesion+curvature)
+    # if sqrt(dot(current['Normal'],current['Normal'])) > threshold:
+    #     kappa = current['Color Map Laplacian']/sqrt(dot(current['Normal'],current['Normal']))
+    #     return array(-delta*kappa*neighbor['Mass']*r_vector*W) # Force -> must be divided by mass
+    # else:
+    #     return array([0.,0.,0.])
+
+    # return array(-delta * n/sqrt(dot(n,n))*neighbor['Mass']/neighbor['Density'] * Laplacian_W)
+    
 # def Artificial_Viscosity(current,neighbor,alpha,beta,h,c,r_vector):
 #     v_ab = array([-neighbor['X Velocity']+current['X Velocity'],-neighbor['Y Velocity']+current['Y Velocity'],-neighbor['Z Velocity']+current['Z Velocity']])
 #     if dot(v_ab,r_vector) < 0:
@@ -85,8 +87,9 @@ def Surface_Tension(current,neighbor,r,h,t,r_vector,kernel_name,delta):
 def Boundary_Fluid_Pressure(current,neighbor,r,h,r_vector,kernel_name):
     kernel_name = globals()['%s' % kernel_name]
     Grad_W = kernel_name(r,h).Gradient(r_vector)
-
-    return array(Grad_W * -current['Mass']*neighbor['psi']*current['Pressure']/current['Density']**2)
+    #array(Grad_W * -neighbor['psi']*current['Pressure']/current['Density']**2)
+    return array(-current['Density']*(current['Pressure']/(current['Density'])**2)*neighbor['Mass']*Grad_W)
+    # return array(-Grad_W * neighbor['psi']*current['Pressure']/current['Density']**2)
 
 # Boundary-Fluid Friction Force
 def Boundary_Fluid_Friction(current,neighbor,r,h,r_vector,kernel_name,delta,c):
@@ -102,5 +105,5 @@ def Boundary_Fluid_Friction(current,neighbor,r,h,r_vector,kernel_name,delta,c):
 
     PI = -ni_ab*max(0,dot(v_ab,r_vector))/(r**2+0.01*h**2)
 
-    return array(-current['Mass']*neighbor['psi']*PI*Grad_W)
+    return array(-current['Density']*current['Mass']*neighbor['Mass']*PI*Grad_W)
 

@@ -1,7 +1,7 @@
-from pyevtk.hl import pointsToVTK, VtkGroup
+from pyevtk.hl import pointsToVTK, VtkGroup, VtkData
 from pathlib import Path
 from os import listdir
-from numpy import sqrt, asarray
+from numpy import sqrt, asarray,array, zeros
 import csv
 import time
 import pandas
@@ -42,11 +42,7 @@ def save_csv(path,iteration,dictionary):
             writer = csv.DictWriter(csvfile, fieldnames=headers,lineterminator = '\n')
             writer.writeheader()
             for i in dictionary:
-                try:
-                    writer.writerow(dictionary[i])
-                except:
-                    writer.writerow(dictionary)
-                    break
+                writer.writerow(dictionary[i])
 
     except IOError:
         print()
@@ -56,15 +52,79 @@ def save_csv(path,iteration,dictionary):
 
 def save_moving_vtk(path,iteration,dictionary):
     filename = path + '/iter_' + str(iteration)  #vtk filename
-    # try:
-    pointsToVTK(filename, asarray([dictionary[d].get('X') for d in dictionary]), asarray([dictionary[d].get('Y') for d in dictionary]), asarray([dictionary[d].get('Z') for d in dictionary]), 
-    data = {"Vx" : asarray([dictionary[d].get('X Velocity') for d in dictionary]), "Vy" : asarray([dictionary[d].get('Z Velocity') for d in dictionary]), "Vz" : asarray([dictionary[d].get('Z Velocity') for d in dictionary]),
-    "rho" : asarray([dictionary[d].get('Density') for d in dictionary]),"p" : asarray([dictionary[d].get('Pressure') for d in dictionary])})
+
+    X = asarray([dictionary[d].get('X') for d in dictionary])
+    Y = asarray([dictionary[d].get('Y') for d in dictionary])
+    Z = asarray([dictionary[d].get('Z') for d in dictionary])
+    Vx = asarray([dictionary[d].get('X Velocity') for d in dictionary])
+    Vy = asarray([dictionary[d].get('Y Velocity') for d in dictionary])
+    Vz = asarray([dictionary[d].get('Z Velocity') for d in dictionary])
+    V_Mag = array(sqrt(Vx**2+Vy**2+Vz**2))
+    # V_vector = asarray([[dictionary[d].get('X Velocity'), dictionary[d].get('Y Velocity'),dictionary[d].get('Z Velocity')] for d in dictionary])
+    rho = asarray([dictionary[d].get('Density') for d in dictionary])
+    p = asarray([dictionary[d].get('Pressure') for d in dictionary])
+    try:
+        # Total forces
+        total_force_x = asarray([dictionary[d].get('Total Force')[0] for d in dictionary])
+        total_force_y = asarray([dictionary[d].get('Total Force')[1] for d in dictionary])
+        total_force_z = asarray([dictionary[d].get('Total Force')[2] for d in dictionary])
+        # Pressure forces
+        p_force_x = asarray([dictionary[d].get('Pressure Force')[0] for d in dictionary])
+        p_force_y = asarray([dictionary[d].get('Pressure Force')[1] for d in dictionary])
+        p_force_z = asarray([dictionary[d].get('Pressure Force')[2] for d in dictionary])
+        # # Boundary-Fluid Pressure forces
+        # fb_p_force_x = asarray([dictionary[d].get('Boundary-Fluid Pressure')[0] for d in dictionary])
+        # fb_p_force_y = asarray([dictionary[d].get('Boundary-Fluid Pressure')[1] for d in dictionary])
+        # fb_p_force_z = asarray([dictionary[d].get('Boundary-Fluid Pressure')[2] for d in dictionary])
+        # # Boundary-Fluid Friction forces
+        # fb_f_force_x = asarray([dictionary[d].get('Boundary-Fluid Friction')[0] for d in dictionary])
+        # fb_f_force_y = asarray([dictionary[d].get('Boundary-Fluid Friction')[1] for d in dictionary])
+        # fb_f_force_z = asarray([dictionary[d].get('Boundary-Fluid Friction')[2] for d in dictionary])
+        # Viscosity forces
+        v_force_x = asarray([dictionary[d].get('Viscosity Force')[0] for d in dictionary])
+        v_force_y = asarray([dictionary[d].get('Viscosity Force')[1] for d in dictionary])
+        v_force_z = asarray([dictionary[d].get('Viscosity Force')[2] for d in dictionary])
+        # Surface tension forces
+        st_force_x = asarray([dictionary[d].get('Surface Tension Force')[0] for d in dictionary])
+        st_force_y = asarray([dictionary[d].get('Surface Tension Force')[1] for d in dictionary])
+        st_force_z = asarray([dictionary[d].get('Surface Tension Force')[2] for d in dictionary])
+
+    except:
+        # Total forces
+        total_force_x = zeros(len(X))
+        total_force_y = zeros(len(X))
+        total_force_z = zeros(len(X))
+        # Pressure forces
+        p_force_x = zeros(len(X))
+        p_force_y = zeros(len(X))
+        p_force_z = zeros(len(X))
+        # # Boundary-Fluid Pressure forces
+        # fb_p_force_x = zeros(len(X))
+        # fb_p_force_y = zeros(len(X))
+        # fb_p_force_z = zeros(len(X))
+        # # Boundary-Fluid Friction forces
+        # fb_f_force_x = zeros(len(X))
+        # fb_f_force_y = zeros(len(X))
+        # fb_f_force_z = zeros(len(X))
+        # Viscosity forces
+        v_force_x = zeros(len(X))
+        v_force_y = zeros(len(X))
+        v_force_z = zeros(len(X))
+        # Surface tension forces
+        st_force_x = zeros(len(X))
+        st_force_y = zeros(len(X))
+        st_force_z = zeros(len(X))
+        
+
+    pointsToVTK(filename,X,Y,Z, 
+    data = {"Vx" : Vx, "Vy" : Vy, "Vz" : Vz,"V_Mag":V_Mag, "rho" : rho,"p" : p,"Total Force X" : total_force_x, "Total Force Y" : total_force_y, "Total Force Z" : total_force_z,
+    "Pressure X" : p_force_x,"Pressure Y" : p_force_y,"Pressure Z" : p_force_z,"Viscosity X" : v_force_x,"Viscosity Y" : v_force_y,"Viscosity Z" : v_force_z,
+    "ST X" : st_force_x,"ST Y" : st_force_y,"ST Z" : st_force_z})
     
 def save_boundary_vtk(path,dictionary):
     filename = path.replace('/vtk','')  + '/boundary' #vtk filename
     pointsToVTK(filename, asarray([dictionary[d].get('X') for d in dictionary]), asarray([dictionary[d].get('Y') for d in dictionary]), asarray([dictionary[d].get('Z') for d in dictionary]),
-    data = {"psi" : asarray([dictionary[d].get('psi') for d in dictionary]) })
+    data = {"mass" : asarray([dictionary[d].get('Mass') for d in dictionary]) })
 
 def add_to_group(path,iteration,time,group):
     filename = path + '/iter_' + str(iteration)  + '.vtu' #vtk filename 
@@ -73,9 +133,9 @@ def add_to_group(path,iteration,time,group):
 def save_group(group):
     group.save()
 
-def info(current_time, final_time, start_time, now,delta_t,iteration, message='Simulating...'):
+def info(current_time, final_time, start_time, now,delta_t,iteration,max_rho_err, message='Simulating...'):
         print(
-            "\r{} |{}{}| {}% -/-/- Current simulation time: {}s -/-/- Time step: {}s -/-/- Elapsed time: {}s -/-/- Iteration: {}"
+            "\r{} |{}{}| {}% -/-/- Current simulation time: {}s -/- Time step: {}s -/- Elapsed time: {}s -/- Iteration: {} -/- Max Density Error: {}"
             .format(
                 message,
                 "#" * int(20 * current_time / final_time),
@@ -84,7 +144,8 @@ def info(current_time, final_time, start_time, now,delta_t,iteration, message='S
                 round(current_time,6),
                 round(delta_t,6),
                 round(abs(start_time - now)),
-                iteration
+                iteration,
+                round(max_rho_err,3)
             ),
             flush=True,
             end="  "

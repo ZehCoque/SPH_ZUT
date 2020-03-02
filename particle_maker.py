@@ -1,4 +1,4 @@
-from numpy import linspace, array
+from numpy import linspace, array,ceil,around
 import sys
 
 def make_prism(x,y,z,num_x,num_y,num_z,radius,mass,rho_0,type_,vx=0.,vy=0.,vz=0.,dict_index=0,prism={}):
@@ -71,68 +71,71 @@ def make_box(coord_init,coord_final,radius,mass,rho_0,type_,vx=0.,vy=0.,vz=0.,di
     coord_final -> array(x,y,z) of the final coordinates across main diagonal \n
     See make_prism function for the other variables'''
 
-    distance = array(coord_final) - array(coord_init)
+    distance = around(array(coord_final).astype(float) - array(coord_init).astype(float),5)
 
     if distance[0]/(2*radius)%1 != 0 and distance[1]/(2*radius)%1 != 0 and distance[2]/(2*radius)%1 != 0:
         print()
         print("-" * 40)
-        print('Division by radius did not return a whole number while trying to make a prism')    
-        sys.exit(1)
-    else:
-        
-        num_x = int((coord_final[0] - coord_init[0])/(2*radius))
-        num_y = int((coord_final[1] - coord_init[1])/(2*radius))
-        num_z = int((coord_final[2] - coord_init[2])/(2*radius))
+        print('Division by radius did not return a whole number while trying to make a prism, raising up the cube size to fit boundary particle radii')    
+        for i in range(0,len(distance)):
+            fac = ceil(distance[i]/(2*radius))
+            distance[i] = round(fac*2*radius - distance[i],5)
+    
+    coord_final = coord_final + distance
 
-        vx = float(vx)
-        vy = float(vy)
-        vz = float(vz)   
-        rho_0 = float(rho_0) 
+    num_x = int(ceil((coord_final[0] - coord_init[0])/(2*radius)))
+    num_y = int(ceil((coord_final[1] - coord_init[1])/(2*radius)))
+    num_z = int(ceil((coord_final[2] - coord_init[2])/(2*radius)))
 
-        x_array = [float(coord_init[0])]
-        for i in range(1,abs(num_x)):
-            x_array.append(float(x_array[-1]+2*radius))
-        y_array = [float(coord_init[1])]
-        for i in range(1,abs(num_y)):
-            y_array.append(float(y_array[-1]+2*radius))
-        z_array = [float(coord_init[2])]
-        for i in range(1,abs(num_z)):
-            z_array.append(float(z_array[-1]+2*radius))
+    vx = float(vx)
+    vy = float(vy)
+    vz = float(vz)   
+    rho_0 = float(rho_0) 
 
-        for i in x_array:
-            for j in y_array:
-                for k in z_array:
-                    if round(i,3) in coord_init or round(j,3) in coord_init or round(k,3) in coord_init:
-                        box[dict_index] = {'X': i,
-                                           'Y': j,
-                                           'Z': k,
-                                           'X Velocity':vx,
-                                           'Y Velocity':vy,
-                                           'Z Velocity':vz,
-                                           'Pressure': 0.,
-                                           'Density': rho_0,
-                                           'Mass':mass,
-                                           'Type':type_}
-                        dict_index = dict_index + 1
+    x_array = [float(coord_init[0])]
+    for i in range(1,abs(num_x)):
+        x_array.append(float(x_array[-1]+2*radius))
+    y_array = [float(coord_init[1])]
+    for i in range(1,abs(num_y)):
+        y_array.append(float(y_array[-1]+2*radius))
+    z_array = [float(coord_init[2])]
+    for i in range(1,abs(num_z)):
+        z_array.append(float(z_array[-1]+2*radius))
 
-        for i in x_array:
-            for j in y_array:
-                for k in z_array:
-                    if (round(i+2*radius,3) in coord_final or round(j+2*radius,3) in coord_final or round(k+2*radius,3) in coord_final) and \
-                    (round(i,3) not in coord_init and round(j,3) not in coord_init and round(k,3) not in coord_init):
-                        box[dict_index] = {'X': i,
-                                           'Y': j,
-                                           'Z': k,
-                                           'X Velocity':vx,
-                                           'Y Velocity':vy,
-                                           'Z Velocity':vz,
-                                           'Pressure': 0.,
-                                           'Density': rho_0,
-                                           'Mass':mass,
-                                           'Type':type_}
-                        dict_index = dict_index + 1
+    for i in x_array:
+        for j in y_array:
+            for k in z_array:
+                if round(i,3) in coord_init or round(j,3) in coord_init or round(k,3) in coord_init:
+                    box[dict_index] = {'X': i,
+                                        'Y': j,
+                                        'Z': k,
+                                        'X Velocity':vx,
+                                        'Y Velocity':vy,
+                                        'Z Velocity':vz,
+                                        'Pressure': 0.,
+                                        'Density': rho_0,
+                                        'Mass':mass,
+                                        'Type':type_}
+                    dict_index = dict_index + 1
 
-        return box
+    for i in x_array:
+        for j in y_array:
+            for k in z_array:
+                if (round(i+2*radius,5) in coord_final or round(j+2*radius,5) in coord_final or round(k+2*radius,5) in coord_final) and \
+                (round(i,5) not in coord_init and round(j,5) not in coord_init and round(k,5) not in coord_init):
+                    box[dict_index] = {'X': i,
+                                        'Y': j,
+                                        'Z': k,
+                                        'X Velocity':vx,
+                                        'Y Velocity':vy,
+                                        'Z Velocity':vz,
+                                        'Pressure': 0.,
+                                        'Density': rho_0,
+                                        'Mass':mass,
+                                        'Type':type_}
+                    dict_index = dict_index + 1
+
+    return box
 
 
 # def make_sphere(coord_init,radius_sphere,radius_particle,mass,rho_0,type_,vx=0.,vy=0.,vz=0.,dict_index=0,sphere={})
